@@ -1,0 +1,327 @@
+===========================================================================
+KẾT QUẢ ĐÁNH GIÁ BENCHMARK — LAB 7: EMBEDDING & VECTOR STORE
+===========================================================================
+Thời gian: 2026-09-20 12:55:41
+Thư mục dữ liệu: data/ecommerce
+Số lượng file gốc: 10
+Mô hình embedding: smart mock (n-gram feature hashing)
+---------------------------------------------------------------------------
+BẢNG TỔNG HỢP SO SÁNH 3 CHIẾN LƯỢC CHUNKING:
+Strategy                 Chunks   AvgLen      Min-Max    Top-3 Hit       Điểm
+---------------------------------------------------------------------------
+FixedSizeChunker            734    497.7      117-500 5/5 (100.0%)       9/10
+SentenceChunker             759    430.4      24-3747 5/5 (100.0%)       9/10
+RecursiveChunker            856    382.1       16-500  4/5 (80.0%)       9/10
+HeaderSectionChunker        789    414.4       14-600 5/5 (100.0%)       9/10
+SemanticChunker            2243    145.0       1-3026  4/5 (80.0%)       9/10
+===========================================================================
+
+>>> CHI TIẾT CHIẾN LƯỢC: FixedSizeChunker (FixedSizeChunker) <<<
+Tổng chunks: 734 | Độ dài TB: 497.7 ký tự
+Tổng điểm: 9/10 | Top-3 Recall: 100.0%
+
+[Câu #1] [Tra số liệu]
+Query: Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).
+Agent phản hồi: [RAG Agent Answer] thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4647 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc.  Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý...
+  2. score=0.4207 | doc=chinh-sach-tra-hang-hoan-tien | snippet=thanh toán bằng hình thức Thanh toán khi nhận hàng (COD) và/hoặc Chuyển khoản ngân hàng, tài khoản Shopee của Người Mua phải liên kết với các phương...
+  3. score=0.3397 | doc=chinh-sach-tra-hang-hoan-tien | snippet=n chuyển nào cho việc trả hàng.  Theo hình thức “Tự sắp xếp”: Người Mua cần thanh toán trước chi phí vận chuyển cho việc trả hàng. Shopee sẽ hỗ trợ ho...
+
+[Câu #2] [Hỏi điều kiện]
+Query: Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?
+Filter: {'audience': 'seller'}
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).
+Agent phản hồi: [RAG Agent Answer] P và các văn bản quy phạm pháp luật có liên quan về ghi nhãn hàng hóa... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4671 | doc=quy-dinh-dang-ban-san-pham | snippet=P và các văn bản quy phạm pháp luật có liên quan về ghi nhãn hàng hóa.     2. Quy định về hạn sử dụng của sản phẩm chính  a. Người Bán chỉ được phép b...
+  2. score=0.3796 | doc=quy-dinh-dang-ban-san-pham | snippet=NG:  1. Nguyên tắc chung  a. Đăng bán sản phẩm trên Shopee là hoạt động của Người Bán dùng hàng hóa, dịch vụ và tài liệu về hàng hóa, dịch vụ để giới...
+  3. score=0.3500 | doc=chinh-sach-cam-han-che-san-pham | snippet=u trên phải tuân thủ các tiêu chuẩn và nguyên tắc tối thiểu sau:  a. Có hạn sử dụng - tất cả các mặt hàng thực phẩm phải được dán nhãn có chứa thông t...
+
+[Câu #3] [Hỏi quy trình]
+Query: Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).
+Agent phản hồi: [RAG Agent Answer] chính sách khác của Shopee được công bố trên website/ứng dụng Shopee trong từng thời điểm... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4019 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=chính sách khác của Shopee được công bố trên website/ứng dụng Shopee trong từng thời điểm. Các thuật ngữ viết hoa trong quy trình giải quyết tranh ch...
+  2. score=0.4014 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=# Quy trình giải quyết tranh chấp/xử lý khiếu nại  QUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI | Shopee Trung tâm trợ giúp  Xin chào, Sho...
+  3. score=0.4011 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=gồm nhân viên, người quản lý của Sàn Shopee, đối tác của Sàn Shopee) không liên quan, không có thẩm quyền trong quá trình giải quyết các khiếu nại, tr...
+
+[Câu #4] [Liệt kê]
+Query: Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).
+Agent phản hồi: [RAG Agent Answer] chế độ cảnh báo và vận chuyển riêng... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5008 | doc=chinh-sach-van-chuyen | snippet=chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận...
+  2. score=0.4955 | doc=chinh-sach-van-chuyen | snippet=Chuyển này vào bất cứ thời điểm nào.  2. Phạm vi áp dụng     a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vậ...
+  3. score=0.4912 | doc=chinh-sach-van-chuyen | snippet=vị vận chuyển, shipper có quyền từ chối nhận hàng.     c.    Trường hợp hàng hóa không đóng gói đúng quy định nhưng được bàn giao thành công cho đơn v...
+
+[Câu #5] [Cần metadata_filter]
+Query: Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?
+Filter: {'audience': 'buyer'}
+Điểm: 1/2 | In Top-3: CÓ
+Gold Answer: Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).
+Agent phản hồi: [RAG Agent Answer] ường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5166 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=ường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee.  1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall...
+  2. score=0.4365 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc  Sản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người Mua, bao gồm nhưng không giới...
+  3. score=0.4343 | doc=chinh-sach-tra-hang-hoan-tien | snippet=gười Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này.   3.4. Tất cả các yêu cầu trả hàng hoàn tiền phả...
+
+A/B TEST (Câu #5 - Đổi trả hàng):
+  Có Filter (buyer): ['dieu-khoan-dich-vu-shopee-mall', 'dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-tra-hang-hoan-tien']
+  Không Filter     : ['dieu-khoan-dich-vu-shopee-mall', 'dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-tra-hang-hoan-tien']
+  Nhận xét: Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (chinh-sach-tra-hang-hoan-tien, dieu-khoan-dich-vu-shopee-mall), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent.
+---------------------------------------------------------------------------
+
+>>> CHI TIẾT CHIẾN LƯỢC: SentenceChunker (SentenceChunker) <<<
+Tổng chunks: 759 | Độ dài TB: 430.4 ký tự
+Tổng điểm: 9/10 | Top-3 Recall: 100.0%
+
+[Câu #1] [Tra số liệu]
+Query: Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).
+Agent phản hồi: [RAG Agent Answer] Shopee sẽ có biện pháp cụ thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4118 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=Shopee sẽ có biện pháp cụ thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc. Bước 3: Khiếu nại Trả...
+  2. score=0.4011 | doc=chinh-sach-tra-hang-hoan-tien | snippet=Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với...
+  3. score=0.3898 | doc=chinh-sach-tra-hang-hoan-tien | snippet=Một số trường hợp Người Mua có nhu cầu trả hàng/hoàn tiền sau thời hạn trên, Shopee sẽ xem xét và có thể hỗ trợ Người Mua được trả hàng/hoàn tiền tron...
+
+[Câu #2] [Hỏi điều kiện]
+Query: Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?
+Filter: {'audience': 'seller'}
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).
+Agent phản hồi: [RAG Agent Answer] 2... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4736 | doc=quy-dinh-dang-ban-san-pham | snippet=2. Quy định về hạn sử dụng của sản phẩm chính  a. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng v...
+  2. score=0.4113 | doc=chinh-sach-cam-han-che-san-pham | snippet=2. PHẠM VI ÁP DỤNG  Chính sách này áp dụng đối với việc đăng bán sản phẩm, hàng hóa, dịch vụ trên Sàn Shopee. Mỗi khi đăng bán sản phẩm, Người Bán có...
+  3. score=0.3625 | doc=quy-dinh-dang-ban-san-pham | snippet=Lưu ý:  - Ngoài các quy định về thông tin mô tả như nêu trên, thông tin về hàng hóa được đăng bán phải bao gồm các nội dung bắt buộc thể hiện trên nhã...
+
+[Câu #3] [Hỏi quy trình]
+Query: Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).
+Agent phản hồi: [RAG Agent Answer] Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5456 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động. Đối với Người Bán n...
+  2. score=0.4375 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động. Đối với Người Bán n...
+  3. score=0.4164 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=# Quy trình giải quyết tranh chấp/xử lý khiếu nại  QUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI | Shopee Trung tâm trợ giúp  Xin chào, Sho...
+
+[Câu #4] [Liệt kê]
+Query: Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).
+Agent phản hồi: [RAG Agent Answer] Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5131 | doc=chinh-sach-van-chuyen | snippet=Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng. c. Trường hợp hàng hóa khô...
+  2. score=0.5028 | doc=chinh-sach-van-chuyen | snippet=iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chu...
+  3. score=0.4919 | doc=chinh-sach-van-chuyen | snippet=Phạm vi áp dụng     a. Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đóng gói...
+
+[Câu #5] [Cần metadata_filter]
+Query: Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?
+Filter: {'audience': 'buyer'}
+Điểm: 1/2 | In Top-3: CÓ
+Gold Answer: Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).
+Agent phản hồi: [RAG Agent Answer] Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4643 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có li...
+  2. score=0.4053 | doc=chinh-sach-van-chuyen | snippet=Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng. c. Trường hợp hàng hóa khô...
+  3. score=0.3939 | doc=chinh-sach-tra-hang-hoan-tien | snippet=Việc hoàn tiền cho Người Mua có thể được Shopee cân nhắc thực hiện mà không cần Người Mua phải hoàn trả hàng cho Người Bán. 6. YÊU CẦU ĐỐI VỚI SẢN PHẨ...
+
+A/B TEST (Câu #5 - Đổi trả hàng):
+  Có Filter (buyer): ['dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-van-chuyen', 'chinh-sach-tra-hang-hoan-tien']
+  Không Filter     : ['dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-van-chuyen', 'chinh-sach-cam-han-che-san-pham']
+  Nhận xét: Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (chinh-sach-tra-hang-hoan-tien, dieu-khoan-dich-vu-shopee-mall, chinh-sach-van-chuyen), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent.
+---------------------------------------------------------------------------
+
+>>> CHI TIẾT CHIẾN LƯỢC: RecursiveChunker (RecursiveChunker) <<<
+Tổng chunks: 856 | Độ dài TB: 382.1 ký tự
+Tổng điểm: 9/10 | Top-3 Recall: 80.0%
+
+[Câu #1] [Tra số liệu]
+Query: Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).
+Agent phản hồi: [RAG Agent Answer] Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4578 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee.Đối với các tranh chấp không phải là khiếu nại Trả Hà...
+  2. score=0.4578 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee.Đối với các tranh chấp không phải là khiếu nại Trả Hà...
+  3. score=0.4011 | doc=chinh-sach-tra-hang-hoan-tien | snippet=Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với...
+
+[Câu #2] [Hỏi điều kiện]
+Query: Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?
+Filter: {'audience': 'seller'}
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).
+Agent phản hồi: [RAG Agent Answer] a... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4443 | doc=quy-dinh-dang-ban-san-pham | snippet=a. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện t...
+  2. score=0.3793 | doc=quy-dinh-dang-ban-san-pham | snippet=- Người Bán hàng hóa, dịch vụ phải đáp ứng điều kiện đầu tư, kinh doanh thuộc danh mục ngành, nghề đầu tư kinh doanh có điều kiện phải công bố số, ngà...
+  3. score=0.3664 | doc=chinh-sach-cam-han-che-san-pham | snippet=Chính sách này áp dụng đối với việc đăng bán sản phẩm, hàng hóa, dịch vụ trên Sàn Shopee. Mỗi khi đăng bán sản phẩm, Người Bán có trách nhiệm đảm bảo...
+
+[Câu #3] [Hỏi quy trình]
+Query: Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).
+Agent phản hồi: [RAG Agent Answer] 6... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4824 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=6. Quy trình giải quyết tranh chấp/Xử lý khiếu nại  Khi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa...
+  2. score=0.4245 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoà...
+  3. score=0.4234 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=gồm nhân viên, người quản lý của Sàn Shopee, đối tác của Sàn Shopee) không liên quan, không có thẩm quyền trong quá trình giải quyết các khiếu nại, tr...
+
+[Câu #4] [Liệt kê]
+Query: Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).
+Agent phản hồi: [RAG Agent Answer] iii... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5028 | doc=chinh-sach-van-chuyen | snippet=iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chu...
+  2. score=0.4945 | doc=chinh-sach-van-chuyen | snippet=2. Phạm vi áp dụng     a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đón...
+  3. score=0.4697 | doc=chinh-sach-van-chuyen | snippet=i. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất trong quá trình vận chuyển rất lớn...
+
+[Câu #5] [Cần metadata_filter]
+Query: Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?
+Filter: {'audience': 'buyer'}
+Điểm: 1/2 | In Top-3: KHÔNG
+Gold Answer: Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).
+Agent phản hồi: [RAG Agent Answer] 1... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5138 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn t...
+  2. score=0.4089 | doc=chinh-sach-van-chuyen | snippet=- Tình trạng bao bì gói hàng khi Người Bán gửi hàng đi;     ii. Video và biên bản đồng kiểm với đơn vị vận chuyển (tham khảo mẫu Biên bản Shopee khuyê...
+  3. score=0.3948 | doc=chinh-sach-bao-mat | snippet=để phục vụ mục đích nhận dạng, xác minh, đánh giá pháp lý hoặc để nhận biết khách hàng;  để đánh giá và đưa ra các quyết định liên quan đến hồ sơ tín...
+
+A/B TEST (Câu #5 - Đổi trả hàng):
+  Có Filter (buyer): ['dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-van-chuyen', 'chinh-sach-bao-mat']
+  Không Filter     : ['dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-van-chuyen', 'quy-dinh-dang-ban-san-pham']
+  Nhận xét: Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (dieu-khoan-dich-vu-shopee-mall, chinh-sach-bao-mat, chinh-sach-van-chuyen), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent.
+---------------------------------------------------------------------------
+
+>>> CHI TIẾT CHIẾN LƯỢC: HeaderSectionChunker (HeaderSectionChunker) <<<
+Tổng chunks: 789 | Độ dài TB: 414.4 ký tự
+Tổng điểm: 9/10 | Top-3 Recall: 100.0%
+
+[Câu #1] [Tra số liệu]
+Query: Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).
+Agent phản hồi: [RAG Agent Answer] Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4401 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả H...
+  2. score=0.4401 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả H...
+  3. score=0.4131 | doc=chinh-sach-tra-hang-hoan-tien | snippet=3.3.  Đối với các đơn hàng được thanh toán bằng hình thức Thanh toán khi nhận hàng (COD) và/hoặc Chuyển khoản ngân hàng, tài khoản Shopee của Người Mu...
+
+[Câu #2] [Hỏi điều kiện]
+Query: Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?
+Filter: {'audience': 'seller'}
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).
+Agent phản hồi: [RAG Agent Answer] 2... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4736 | doc=quy-dinh-dang-ban-san-pham | snippet=2. Quy định về hạn sử dụng của sản phẩm chính  a. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng v...
+  2. score=0.3660 | doc=quy-dinh-dang-ban-san-pham | snippet=1. Nguyên tắc chung  a. Đăng bán sản phẩm trên Shopee là hoạt động của Người Bán dùng hàng hóa, dịch vụ và tài liệu về hàng hóa, dịch vụ để giới thiệu...
+  3. score=0.3207 | doc=quy-dinh-dang-ban-san-pham | snippet=+ Phiếu công bố mỹ phẩm do Bộ/ Sở Y tế cấp, trong đó thể hiện thông tin chủ thể chịu trách nhiệm đưa sản phẩm ra thị trường;  + Chứng nhận đại lý/Hợp...
+
+[Câu #3] [Hỏi quy trình]
+Query: Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).
+Agent phản hồi: [RAG Agent Answer] 6... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.6761 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=6. Quy trình giải quyết tranh chấp/Xử lý khiếu nại...
+  2. score=0.5151 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoà...
+  3. score=0.4582 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=1. Quy Định Chung Về Giải Quyết Tranh Chấp/Xử Lý Khiếu Nại...
+
+[Câu #4] [Liệt kê]
+Query: Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).
+Agent phản hồi: [RAG Agent Answer] iii... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5028 | doc=chinh-sach-van-chuyen | snippet=iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chu...
+  2. score=0.4945 | doc=chinh-sach-van-chuyen | snippet=2. Phạm vi áp dụng     a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đón...
+  3. score=0.4697 | doc=chinh-sach-van-chuyen | snippet=i. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất trong quá trình vận chuyển rất lớn...
+
+[Câu #5] [Cần metadata_filter]
+Query: Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?
+Filter: {'audience': 'buyer'}
+Điểm: 1/2 | In Top-3: CÓ
+Gold Answer: Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).
+Agent phản hồi: [RAG Agent Answer] 1... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5087 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=1.5.     Shopee bảo lưu quyền: (a) bổ sung hoặc sửa đổi danh sách các Sản Phẩm Được Loại Trừ và/hoặc Điều Kiện Trả Hàng và (b) sửa đổi, chấm dứt hoặc...
+  2. score=0.4181 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=Yêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc  Sản Phẩm tại Shopee Mall được trả lại theo cách thức...
+  3. score=0.4048 | doc=chinh-sach-tra-hang-hoan-tien | snippet=6. YÊU CẦU ĐỐI VỚI SẢN PHẨM HOÀN TRẢ   Để hạn chế các rủi ro phát sinh liên quan đến việc hoàn trả Sản Phẩm, Người Mua lưu ý cần phải đóng gói Sản Phẩ...
+
+A/B TEST (Câu #5 - Đổi trả hàng):
+  Có Filter (buyer): ['dieu-khoan-dich-vu-shopee-mall', 'dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-tra-hang-hoan-tien']
+  Không Filter     : ['dieu-khoan-dich-vu-shopee-mall', 'dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-tra-hang-hoan-tien']
+  Nhận xét: Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (chinh-sach-tra-hang-hoan-tien, dieu-khoan-dich-vu-shopee-mall), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent.
+---------------------------------------------------------------------------
+
+>>> CHI TIẾT CHIẾN LƯỢC: SemanticChunker (SemanticChunker) <<<
+Tổng chunks: 2243 | Độ dài TB: 145.0 ký tự
+Tổng điểm: 9/10 | Top-3 Recall: 80.0%
+
+[Câu #1] [Tra số liệu]
+Query: Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).
+Agent phản hồi: [RAG Agent Answer] Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4305 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến...
+  2. score=0.4305 | doc=quy-trinh-giai-quyet-tranh-chap | snippet=Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến...
+  3. score=0.4259 | doc=chinh-sach-van-chuyen | snippet=Khiếu nại với đơn trả hàng hoàn tiền: Xem chi tiết tại Chính sách Trả hàng và Hoàn tiền     b....
+
+[Câu #2] [Hỏi điều kiện]
+Query: Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?
+Filter: {'audience': 'seller'}
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).
+Agent phản hồi: [RAG Agent Answer] Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4386 | doc=quy-dinh-dang-ban-san-pham | snippet=Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại...
+  2. score=0.3939 | doc=chinh-sach-cam-han-che-san-pham | snippet=Mỗi khi đăng bán sản phẩm, Người Bán có trách nhiệm đảm bảo hàng hóa của mình tuân thủ Luật pháp hiện hành đồng thời không vi phạm các Điều Khoản Sử D...
+  3. score=0.3538 | doc=quy-dinh-dang-ban-san-pham | snippet=Quy định riêng với một số ngành hàng  3.1....
+
+[Câu #3] [Hỏi quy trình]
+Query: Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).
+Agent phản hồi: [RAG Agent Answer] Chi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.4829 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Chi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee....
+  2. score=0.4757 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Quy trình giải quyết tranh chấp/Xử lý khiếu nại  Khi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa cá...
+  3. score=0.4032 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Thành viên không được có các hoạt động mang tính gây rối cản trở hoạt động kinh doanh bình thường của Sàn Shopee cũng như của những thành viên khác tr...
+
+[Câu #4] [Liệt kê]
+Query: Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?
+Điểm: 2/2 | In Top-3: CÓ
+Gold Answer: Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).
+Agent phản hồi: [RAG Agent Answer] Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5867 | doc=chinh-sach-van-chuyen | snippet=Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển khô...
+  2. score=0.5637 | doc=chinh-sach-van-chuyen | snippet=Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng....
+  3. score=0.5416 | doc=chinh-sach-van-chuyen | snippet=Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển khô...
+
+[Câu #5] [Cần metadata_filter]
+Query: Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?
+Filter: {'audience': 'buyer'}
+Điểm: 1/2 | In Top-3: KHÔNG
+Gold Answer: Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).
+Agent phản hồi: [RAG Agent Answer] Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:... (Trích dẫn: [1])
+Top chunks:
+  1. score=0.5306 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có li...
+  2. score=0.4819 | doc=quy-che-hoat-dong-san-thuong-mai-dien-tu | snippet=Bộ phận cơ thể người và hài cốt  a....
+  3. score=0.4005 | doc=dieu-khoan-dich-vu-shopee-mall | snippet=Xin lưu ý rằng quyết định của Shopee sẽ dựa trên danh sách điều khoản của các điều kiện có hiệu lực tại thời điểm đưa ra quyết định đó (bao gồm danh m...
+
+A/B TEST (Câu #5 - Đổi trả hàng):
+  Có Filter (buyer): ['dieu-khoan-dich-vu-shopee-mall', 'quy-che-hoat-dong-san-thuong-mai-dien-tu', 'dieu-khoan-dich-vu-shopee-mall']
+  Không Filter     : ['dieu-khoan-dich-vu-shopee-mall', 'chinh-sach-cam-han-che-san-pham', 'quy-che-hoat-dong-san-thuong-mai-dien-tu']
+  Nhận xét: Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (dieu-khoan-dich-vu-shopee-mall, quy-che-hoat-dong-san-thuong-mai-dien-tu), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent.
+---------------------------------------------------------------------------

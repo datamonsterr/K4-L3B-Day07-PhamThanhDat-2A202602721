@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo Cáo Benchmark RAG — Lab 7: Embedding & Vector Store</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #0f172a;
+      color: #e2e8f0;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .tab-active {
+      border-bottom: 3px solid #38bdf8;
+      color: #38bdf8;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card-hover:hover {
+      border-color: rgba(56, 189, 248, 0.3);
+      transform: translateY(-2px);
+      transition: all 0.2s ease-in-out;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-50 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center font-black text-xl text-white shadow-lg shadow-sky-500/20">
+          L7
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Lab 7: Embedding & Vector Store
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30">EasyGame</span>
+          </h1>
+          <p class="text-xs text-slate-400">Đánh giá so sánh 3 Chunker: FixedSize, Sentence & Recursive</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <label class="cursor-pointer text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          <span>Tải file JSON khác</span>
+          <input type="file" id="json-file-input" accept=".json" class="hidden">
+        </label>
+        <button onclick="window.print()" class="text-xs bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 shadow-md shadow-sky-600/20">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          In / Xuất PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- TABS BAR -->
+    <div id="tabs-bar" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto space-x-1 border-t border-slate-800/80 pt-1 text-sm font-medium">
+      <!-- Generated dynamically by renderTabs() -->
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+
+    <!-- METADATA HEADER BANNER -->
+    <div id="meta-banner" class="glass-card rounded-2xl p-5 shadow-xl grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+      <div>
+        <span class="text-slate-400 block mb-0.5">Thời gian chạy</span>
+        <span id="meta-timestamp" class="font-semibold text-slate-200 font-mono">--</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block mb-0.5">Thư mục dữ liệu</span>
+        <span id="meta-data-dir" class="font-semibold text-slate-200 font-mono">--</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block mb-0.5">Mô hình Embedding</span>
+        <span id="meta-embedder" class="font-semibold text-sky-400 font-mono">--</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block mb-0.5">Tập tài liệu</span>
+        <span id="meta-docs" class="font-semibold text-slate-200">10 tệp chính sách Shopee</span>
+      </div>
+    </div>
+
+    <!-- TAB 1: OVERVIEW & COMPARISON -->
+    <div id="tab-content-overview" class="space-y-8">
+      
+      <!-- KPI HIGHLIGHT CARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5" id="overview-kpis">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- MAIN STRATEGY COMPARISON TABLE -->
+      <div class="glass-card rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>Bảng So Sánh Chi Tiết 3 Chiến Lược Chunking</span>
+          </h2>
+          <span class="text-xs text-slate-400">Thang điểm 10 theo rubric Lab 7</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700/80 text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-800/40">
+                <th class="py-3 px-4 rounded-l-lg">Chiến lược (Strategy)</th>
+                <th class="py-3 px-4 text-center">Số Chunks</th>
+                <th class="py-3 px-4 text-center">Độ Dài TB</th>
+                <th class="py-3 px-4 text-center">Min / Max</th>
+                <th class="py-3 px-4 text-center">Top-3 Recall</th>
+                <th class="py-3 px-4 text-center">Tổng Điểm</th>
+                <th class="py-3 px-4 rounded-r-lg">Ưu & Nhược Điểm Chính</th>
+              </tr>
+            </thead>
+            <tbody id="comparison-table-body" class="divide-y divide-slate-800">
+              <!-- populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- QUERY-BY-QUERY SCORE COMPARISON MATRIX -->
+      <div class="glass-card rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>Ma Trận Hiệu Năng Truy Xuất Theo Từng Câu Hỏi</span>
+          </h2>
+          <span class="text-xs text-slate-400">Điểm tối đa: 2đ/câu</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700/80 text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-800/40">
+                <th class="py-3 px-4 rounded-l-lg w-16">#</th>
+                <th class="py-3 px-4 w-32">Loại câu hỏi</th>
+                <th class="py-3 px-4">Nội dung câu hỏi (Query)</th>
+                <th class="py-3 px-4 text-center">FixedSize</th>
+                <th class="py-3 px-4 text-center">Sentence</th>
+                <th class="py-3 px-4 text-center rounded-r-lg">Recursive</th>
+              </tr>
+            </thead>
+            <tbody id="query-matrix-body" class="divide-y divide-slate-800">
+              <!-- populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DEEP INSIGHTS & LESSONS -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="glass-card rounded-2xl p-6 shadow-xl space-y-3">
+          <h3 class="font-bold text-white flex items-center gap-2 text-base text-amber-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Phân Tích Bản Chất & Ngữ Cảnh
+          </h3>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Văn bản chính sách thương mại điện tử (Shopee) có độ dài rất lớn, cấu trúc theo điều khoản đánh số và mục con.
+            <strong class="text-sky-300">RecursiveChunker</strong> duy trì được tính gắn kết của từng mục điều khoản mà không vượt trần 500 ký tự.
+            Ngược lại, <strong class="text-amber-300">FixedSizeChunker</strong> dù có điểm cao do giữ độ dài đều nhưng thường xé ngang câu điều kiện;
+            còn <strong class="text-emerald-300">SentenceChunker</strong> phụ thuộc lớn vào dấu chấm phẩy pháp lý nên độ dài chunk dao động mạnh.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 shadow-xl space-y-3">
+          <h3 class="font-bold text-white flex items-center gap-2 text-base text-indigo-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            Vai Trò Của Metadata Filtering
+          </h3>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Khi câu hỏi không nêu rõ vai trò (Câu #5 về quyền đổi trả), nếu không lọc <code class="text-xs bg-slate-800 px-1 py-0.5 rounded text-sky-400 font-mono">audience=buyer</code>,
+            vector store có thể nhặt các chunk quy định đổi trả bên phía Người Bán (seller) hoặc điều khoản vận chuyển, gây nhiễu ngữ cảnh cho Agent.
+            Lọc metadata giúp thu hẹp 100% không gian tìm kiếm vào đúng đối tượng mục tiêu.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STRATEGY DETAIL CONTAINER (Used for tabs: fixed_size, sentence, recursive) -->
+    <div id="strategy-detail-container" class="space-y-6 hidden">
+      <!-- Strategy Summary Card -->
+      <div id="strategy-header-card" class="glass-card rounded-2xl p-6 shadow-xl space-y-4">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Query Details Accordion / List -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>Chi Tiết 5 Câu Hỏi Benchmark</span>
+        </h3>
+        <div id="strategy-queries-list" class="space-y-4">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- A/B Test Card for this Strategy -->
+      <div id="strategy-ab-card" class="glass-card rounded-2xl p-6 shadow-xl space-y-4">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- TAB 5: A/B TEST COMPARISON VIEW -->
+    <div id="tab-content-ab-test" class="space-y-6 hidden">
+      <div class="glass-card rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-xs uppercase tracking-wider font-semibold text-indigo-400 block mb-1">A/B Evaluation — Câu hỏi #5</span>
+            <h2 class="text-xl font-bold text-white">So Sánh Có Lọc Metadata (buyer) Và Không Lọc</h2>
+          </div>
+          <span class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-mono">
+            metadata_filter = { audience: "buyer" }
+          </span>
+        </div>
+        <p class="text-sm text-slate-300">
+          <strong>Câu hỏi:</strong> "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?"<br>
+          <strong>Mục tiêu:</strong> Kiểm chứng xem bộ lọc phân loại đối tượng có giúp cô lập đúng tài liệu người mua, tránh bị ảnh hưởng bởi chính sách của người bán hay không.
+        </p>
+
+        <!-- A/B Comparison Cards for all 3 strategies -->
+        <div id="ab-test-strategies-grid" class="space-y-6 pt-2">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: RAW JSON VIEW -->
+    <div id="tab-content-json" class="space-y-4 hidden">
+      <div class="glass-card rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white">Dữ Liệu JSON Toàn Bộ Benchmark</h2>
+          <div class="flex items-center gap-2">
+            <button onclick="copyJsonToClipboard()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+              Sao Chép JSON
+            </button>
+            <a id="download-json-btn" download="ket_qua_benchmark.json" href="#" class="text-xs bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg font-medium transition">
+              Tải File JSON
+            </a>
+          </div>
+        </div>
+        <pre id="json-display" class="bg-slate-950 p-4 rounded-xl text-xs text-sky-300 font-mono overflow-x-auto max-h-[650px] border border-slate-800"></pre>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
+    <p>Lab 7: Embedding & Vector Store — Nhóm EasyGame — Hệ thống RAG đa chiến lược Chunking</p>
+  </footer>
+
+  <!-- EMBEDDED BENCHMARK DATA SCRIPT -->
+  <script id="embedded-data" type="application/json">
+{"timestamp": "2026-09-20 12:55:41", "data_dir": "data/ecommerce", "total_documents": 10, "documents": ["chinh-sach-bao-mat", "chinh-sach-cam-han-che-san-pham", "chinh-sach-tra-hang-hoan-tien", "chinh-sach-van-chuyen", "dieu-khoan-dich-vu-hien-thi", "dieu-khoan-dich-vu-shopee-mall", "dieu-khoan-dich-vu", "quy-che-hoat-dong-san-thuong-mai-dien-tu", "quy-dinh-dang-ban-san-pham", "quy-trinh-giai-quyet-tranh-chap"], "embedding_backend": "smart mock (n-gram feature hashing)", "queries_spec": [{"id": 1, "type": "Tra số liệu", "query": "Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "07 ngày làm việc", "gold_answer": "Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3)."}, {"id": 2, "type": "Hỏi điều kiện", "query": "Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?", "filter": {"audience": "seller"}, "gold_doc_id": "quy-dinh-dang-ban-san-pham", "alt_gold_doc_ids": ["shopee-listing-policy", "chinh-sach-cam-han-che-san-pham"], "key_phrase": "30%", "gold_answer": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a)."}, {"id": 3, "type": "Hỏi quy trình", "query": "Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "Bước 1", "gold_answer": "Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md)."}, {"id": 4, "type": "Liệt kê", "query": "Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?", "filter": null, "gold_doc_id": "chinh-sach-van-chuyen", "alt_gold_doc_ids": ["shopee-shipping"], "key_phrase": "từ chối", "gold_answer": "Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md)."}, {"id": 5, "type": "Cần metadata_filter", "query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter": {"audience": "buyer"}, "gold_doc_id": "chinh-sach-tra-hang-hoan-tien", "alt_gold_doc_ids": ["shopee-hoan-tien", "shopee-returns-refunds"], "key_phrase": "yêu cầu", "gold_answer": "Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md)."}], "strategies": {"fixed_size": {"strategy": "fixed_size", "name": "FixedSizeChunker", "class_name": "FixedSizeChunker", "params": {"chunk_size": 500, "overlap": 50}, "strengths": "Cắt khối kích thước đồng đều (500 ký tự); thời gian xử lý cực nhanh; có overlap 50 ký tự giảm mất mát ngữ cảnh biên.", "weaknesses": "Cắt ngang câu hoặc đoạn văn bản pháp lý; có thể xé đôi định nghĩa điều khoản hoặc bảng biểu.", "stats": {"total_chunks": 734, "avg_length": 497.7, "min_length": 117, "max_length": 500}, "summary": {"relevant_in_top3_count": 5, "total_queries": 5, "top3_hit_rate": 100.0, "total_score": 9, "max_score": 10}, "queries": [{"id": 1, "type": "Tra số liệu", "query": "Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "07 ngày làm việc", "gold_answer": "Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4647, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#3", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc.  Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý...", "full_content": "thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc.\n\nBước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông t"}, {"rank": 2, "score": 0.4207, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#8", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "thanh toán bằng hình thức Thanh toán khi nhận hàng (COD) và/hoặc Chuyển khoản ngân hàng, tài khoản Shopee của Người Mua phải liên kết với các phương...", "full_content": " thanh toán bằng hình thức Thanh toán khi nhận hàng (COD) và/hoặc Chuyển khoản ngân hàng, tài khoản Shopee của Người Mua phải liên kết với các phương thức nhận hoàn tiền hợp lệ theo quy định áp dụng của Shopee (ví dụ như Tài Khoản Ngân Hàng và/hoặc các ví điện tử hợp lệ như Ví ShopeePay) trước khi thực hiện yêu cầu Trả hàng / Hoàn tiền. Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với các phương "}, {"rank": 3, "score": 0.3397, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#31", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "n chuyển nào cho việc trả hàng.  Theo hình thức “Tự sắp xếp”: Người Mua cần thanh toán trước chi phí vận chuyển cho việc trả hàng. Shopee sẽ hỗ trợ ho...", "full_content": "n chuyển nào cho việc trả hàng.\n\nTheo hình thức “Tự sắp xếp”: Người Mua cần thanh toán trước chi phí vận chuyển cho việc trả hàng. Shopee sẽ hỗ trợ hoàn lại một phần chi phí vận chuyển cho việc trả hàng dưới hình thức Shopee Xu theo chính sách của Shopee khi Người Mua đáp ứng được các điều kiện để được hỗ trợ trả hàng trong thời hạn 03 – 05 ngày làm việc kể từ ngày Người Mua đã gửi Sản Phẩm Hoàn Trả cho đơn vị vận chuyển và yêu cầu trả hàng/hoàn tiền của Người Mua được chấp nhận.\n\n \n\n9. HOÀN TIỀ"}], "agent_answer": "[RAG Agent Answer] thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc... (Trích dẫn: [1])"}, {"id": 2, "type": "Hỏi điều kiện", "query": "Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?", "filter": {"audience": "seller"}, "gold_doc_id": "quy-dinh-dang-ban-san-pham", "alt_gold_doc_ids": ["shopee-listing-policy", "chinh-sach-cam-han-che-san-pham"], "key_phrase": "30%", "gold_answer": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4671, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#41", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "P và các văn bản quy phạm pháp luật có liên quan về ghi nhãn hàng hóa.     2. Quy định về hạn sử dụng của sản phẩm chính  a. Người Bán chỉ được phép b...", "full_content": "P và các văn bản quy phạm pháp luật có liên quan về ghi nhãn hàng hóa.\n\n \n\n2. Quy định về hạn sử dụng của sản phẩm chính\n\na. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn.\n\nb. Đối với mặt hàng thực phẩm, đặc biệt là thực phẩm có hạn sử dụng dưới 30 ngày, Người Bán cần ghi rõ hạn sử dụng trên mô tả sản phẩm và tự sắp xếp vận chuyển khi có đơn hàng phát sinh. Mọi trường hợp Ngườ"}, {"rank": 2, "score": 0.3796, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#1", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "NG:  1. Nguyên tắc chung  a. Đăng bán sản phẩm trên Shopee là hoạt động của Người Bán dùng hàng hóa, dịch vụ và tài liệu về hàng hóa, dịch vụ để giới...", "full_content": "NG:\n\n1. Nguyên tắc chung\n\na. Đăng bán sản phẩm trên Shopee là hoạt động của Người Bán dùng hàng hóa, dịch vụ và tài liệu về hàng hóa, dịch vụ để giới thiệu với khách hàng về hàng hóa, dịch vụ đó.\n\nb. Khi đăng bán sản phẩm trên Shopee, Người Bán có trách nhiệm tuân thủ các quy định tại Điều 117, Điều 120.4, Điều 121 của Luật Thương Mại và các văn bản quy phạm pháp luật có liên quan đến hoạt động trưng bày, giới thiệu hàng hóa, dịch vụ. Đối với Người Bán là pháp nhân có vốn đầu tư nước ngoài, Ngườ"}, {"rank": 3, "score": 0.35, "doc_id": "chinh-sach-cam-han-che-san-pham", "chunk_id": "chinh-sach-cam-han-che-san-pham#22", "source": "chinh-sach-cam-han-che-san-pham.md", "audience": "seller", "snippet": "u trên phải tuân thủ các tiêu chuẩn và nguyên tắc tối thiểu sau:  a. Có hạn sử dụng - tất cả các mặt hàng thực phẩm phải được dán nhãn có chứa thông t...", "full_content": "u trên phải tuân thủ các tiêu chuẩn và nguyên tắc tối thiểu sau:\n\na. Có hạn sử dụng - tất cả các mặt hàng thực phẩm phải được dán nhãn có chứa thông tin hạn sử dụng rõ ràng. Không được bán các mặt hàng thực phẩm đã hết hạn, cận hạn dưới 30 ngày hoặc dưới 30% thời hạn sử dụng..\n\nb. Các mặt hàng thực phẩm dễ bị hỏng/ôi thiu - Người bán có trách nhiệm cung cấp thông tin đầy đủ trong phần mô tả hàng hóa và đảm bảo rằng thực phẩm luôn được đóng gói hợp lý.\n\n4.22. Tất cả các sản phẩm đăng bán cần được"}], "agent_answer": "[RAG Agent Answer] P và các văn bản quy phạm pháp luật có liên quan về ghi nhãn hàng hóa... (Trích dẫn: [1])"}, {"id": 3, "type": "Hỏi quy trình", "query": "Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "Bước 1", "gold_answer": "Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4019, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#9", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "chính sách khác của Shopee được công bố trên website/ứng dụng Shopee trong từng thời điểm. Các thuật ngữ viết hoa trong quy trình giải quyết tranh ch...", "full_content": " chính sách khác của Shopee được công bố trên website/ứng dụng Shopee trong từng thời điểm. Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động.\n\nĐối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoài cung cấp theo quy định của Bộ Luật Dân Sự về đại diện.\n\nQuy Trình này được cập nhật và đăng tải vào ngày 15/3/2024.\n\nPhiên b"}, {"rank": 2, "score": 0.4014, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#0", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "# Quy trình giải quyết tranh chấp/xử lý khiếu nại  QUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI | Shopee Trung tâm trợ giúp  Xin chào, Sho...", "full_content": "# Quy trình giải quyết tranh chấp/xử lý khiếu nại\n\nQUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI | Shopee Trung tâm trợ giúp\n\nXin chào, Shopee có thể giúp gì cho bạn?\n\nQUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI\n\n1. Quy Định Chung Về Giải Quyết Tranh Chấp/Xử Lý Khiếu Nại\n\nKhi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa các bên để đạt được sự đồng thuận về phương án giải quyết. Nếu Người Bán, Người Mua và các bên có liên q"}, {"rank": 3, "score": 0.4011, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#159", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "gồm nhân viên, người quản lý của Sàn Shopee, đối tác của Sàn Shopee) không liên quan, không có thẩm quyền trong quá trình giải quyết các khiếu nại, tr...", "full_content": "gồm nhân viên, người quản lý của Sàn Shopee, đối tác của Sàn Shopee) không liên quan, không có thẩm quyền trong quá trình giải quyết các khiếu nại, tranh chấp trên Sàn Shopee, hoặc (iv) có các hành vi đe dọa tính mạng, danh dự, nhân phẩm của thành viên khác trên Sàn Shopee cũng như của nhân viên, người quản lý, đối tác của Sàn Shopee trong quá trình giải quyết khiếu nại, tranh chấp trên Sàn Shopee.\n\nm. Bồi thường cho Shopee, nhân viên, đối tác của Shopee hoặc các bên có liên quan trong trường hợ"}], "agent_answer": "[RAG Agent Answer] chính sách khác của Shopee được công bố trên website/ứng dụng Shopee trong từng thời điểm... (Trích dẫn: [1])"}, {"id": 4, "type": "Liệt kê", "query": "Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?", "filter": null, "gold_doc_id": "chinh-sach-van-chuyen", "alt_gold_doc_ids": ["shopee-shipping"], "key_phrase": "từ chối", "gold_answer": "Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5008, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#12", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận...", "full_content": "chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện dễ hư hại/ tổn thất do đặc tính sản phẩm đó.\n\n   ii. Shopee có thể vẫn hỗ trợ nếu có yêu cầu từ Người Bán nhưng trách nhiệm chịu rủi ro khi vận chuyển hoàn toàn thuộc về Người Bán, trừ khi các bên có thể xác định tình trạng thiệt hại hoàn toàn xảy ra do lỗi của đơ"}, {"rank": 2, "score": 0.4955, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#2", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Chuyển này vào bất cứ thời điểm nào.  2. Phạm vi áp dụng     a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vậ...", "full_content": "Chuyển này vào bất cứ thời điểm nào.\n\n2. Phạm vi áp dụng\n\n   a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đóng gói hàng hóa, các quyền, nghĩa vụ của các Bên liên quan đến việc vận chuyển hàng hóa mà Sàn Shopee hỗ trợ vận chuyển. \n\n   b.    Chính Sách Vận Chuyển này không áp dụng đối với trường hợp Người Bán tự tổ chức vận chuyển hàng hóa của Người Bán, dù một phần hoặc toàn bộ. Trong trường hợp này, Người Bán phải đảm"}, {"rank": 3, "score": 0.4912, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#19", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "vị vận chuyển, shipper có quyền từ chối nhận hàng.     c.    Trường hợp hàng hóa không đóng gói đúng quy định nhưng được bàn giao thành công cho đơn v...", "full_content": "vị vận chuyển, shipper có quyền từ chối nhận hàng.\n\n   c.    Trường hợp hàng hóa không đóng gói đúng quy định nhưng được bàn giao thành công cho đơn vị vận chuyển: Bưu kiện sẽ được đơn vị vận chuyển chuyển hoàn hoặc tiêu hủy (trong trường hợp xấu nhất) nếu xảy ra hư hỏng/bể vỡ, và không thể tiếp tục giao đến cho Người Mua. Người Bán sẽ chịu mọi trách nhiệm trong trường hợp này bao gồm cả nghĩa vụ bồi thường mọi thiệt hại mà Shopee và/hoặc các bên có liên quan trong quá trình vận chuyển phải gánh"}], "agent_answer": "[RAG Agent Answer] chế độ cảnh báo và vận chuyển riêng... (Trích dẫn: [1])"}, {"id": 5, "type": "Cần metadata_filter", "query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter": {"audience": "buyer"}, "gold_doc_id": "chinh-sach-tra-hang-hoan-tien", "alt_gold_doc_ids": ["shopee-hoan-tien", "shopee-returns-refunds"], "key_phrase": "yêu cầu", "gold_answer": "Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).", "score": 1, "max_score": 2, "in_top3": true, "top1_match": false, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5166, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#16", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "ường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee.  1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall...", "full_content": "ường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee.\n\n1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:\n\nlà Sản Phẩm Hạn Chế Trả Hàng; hoặc\n\nkhông đáp ứng Điều Kiện Trả Hàng; hoặc\n\nYêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc\n\nSản Phẩm tại Shopee Mall được trả lại theo cách thức không phù hợp với Điều 1.2 nói"}, {"rank": 2, "score": 0.4365, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#17", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc  Sản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người Mua, bao gồm nhưng không giới...", "full_content": " lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc\n\nSản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người Mua, bao gồm nhưng không giới hạn ở trường hợp hư hại do Người Mua đóng gói không đúng quy cách.\n\nXin lưu ý rằng quyết định của Shopee sẽ dựa trên danh sách điều khoản của các điều kiện có hiệu lực tại thời điểm đưa ra quyết định đó (bao gồm danh mục Sản Phẩm Được Loại Trừ, Điều Kiện Trả Hàng và Thời Gian Yêu Cầu Trả Hàng) và do đó theo Điều 1.5 ở trên, danh sách các Sản Phẩm Đ"}, {"rank": 3, "score": 0.4343, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#9", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "gười Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này.   3.4. Tất cả các yêu cầu trả hàng hoàn tiền phả...", "full_content": "gười Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này. \n\n3.4. Tất cả các yêu cầu trả hàng hoàn tiền phải được thực hiện trên tài khoản Shopee của chính Người Mua đã đặt đơn hàng.\n\n3.5. Shopee luôn xem xét cẩn thận các yêu cầu trả hàng/hoàn tiền của Người Mua và có quyền đưa ra quyết định cuối cùng đối với yêu cầu đó dựa trên các quy định nêu trên và theo Điều Khoản Dịch Vụ của Shopee.\n\n4. QUY ĐỊNH BỔ SUNG ĐỐI VỚI CÁC TRƯỜNG HỢP TRẢ HÀNG COM\n\nViệc Tr"}], "agent_answer": "[RAG Agent Answer] ường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee... (Trích dẫn: [1])"}], "ab_test": {"query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter_applied": {"audience": "buyer"}, "filtered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#16", "audience": "buyer", "score": 0.5166, "snippet": "ường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee.  1.6.     Với quyết định của mình, Shopee có thể từ chối ..."}, {"rank": 2, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#17", "audience": "buyer", "score": 0.4365, "snippet": " lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc  Sản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người ..."}, {"rank": 3, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#9", "audience": "buyer", "score": 0.4343, "snippet": "gười Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này.   3.4. Tất cả các ..."}], "unfiltered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#16", "audience": "buyer", "score": 0.5166, "snippet": "ường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee.  1.6.     Với quyết định của mình, Shopee có thể từ chối ..."}, {"rank": 2, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#17", "audience": "buyer", "score": 0.4365, "snippet": " lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc  Sản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người ..."}, {"rank": 3, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#9", "audience": "buyer", "score": 0.4343, "snippet": "gười Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này.   3.4. Tất cả các ..."}], "filter_helped": true, "analysis": "Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (chinh-sach-tra-hang-hoan-tien, dieu-khoan-dich-vu-shopee-mall), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent."}}, "sentence": {"strategy": "sentence", "name": "SentenceChunker", "class_name": "SentenceChunker", "params": {"max_sentences_per_chunk": 3}, "strengths": "Đảm bảo ngữ pháp và ranh giới câu trọn vẹn; các luận điểm pháp lý không bị ngắt quãng giữa chừng.", "weaknesses": "Không kiểm soát được độ dài ký tự tối đa (chunk có thể quá ngắn hoặc quá dài nếu câu phức); độ dài không đồng đều.", "stats": {"total_chunks": 759, "avg_length": 430.4, "min_length": 24, "max_length": 3747}, "summary": {"relevant_in_top3_count": 5, "total_queries": 5, "top3_hit_rate": 100.0, "total_score": 9, "max_score": 10}, "queries": [{"id": 1, "type": "Tra số liệu", "query": "Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "07 ngày làm việc", "gold_answer": "Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4118, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#3", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "Shopee sẽ có biện pháp cụ thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc. Bước 3: Khiếu nại Trả...", "full_content": "Shopee sẽ có biện pháp cụ thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc. Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc."}, {"rank": 2, "score": 0.4011, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#9", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với...", "full_content": "Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này. 3.4. Tất cả các yêu cầu trả hàng hoàn tiền phải được thực hiện trên tài khoản Shopee của chính Người Mua đã đặt đơn hàng."}, {"rank": 3, "score": 0.3898, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#8", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "Một số trường hợp Người Mua có nhu cầu trả hàng/hoàn tiền sau thời hạn trên, Shopee sẽ xem xét và có thể hỗ trợ Người Mua được trả hàng/hoàn tiền tron...", "full_content": "Một số trường hợp Người Mua có nhu cầu trả hàng/hoàn tiền sau thời hạn trên, Shopee sẽ xem xét và có thể hỗ trợ Người Mua được trả hàng/hoàn tiền trong phạm vi phù hợp với Chính Sách Shopee. 3.3. Đối với các đơn hàng được thanh toán bằng hình thức Thanh toán khi nhận hàng (COD) và/hoặc Chuyển khoản ngân hàng, tài khoản Shopee của Người Mua phải liên kết với các phương thức nhận hoàn tiền hợp lệ theo quy định áp dụng của Shopee (ví dụ như Tài Khoản Ngân Hàng và/hoặc các ví điện tử hợp lệ như Ví ShopeePay) trước khi thực hiện yêu cầu Trả hàng / Hoàn tiền."}], "agent_answer": "[RAG Agent Answer] Shopee sẽ có biện pháp cụ thể hỗ trợ người khiếu nại/các bên tranh chấp để giải quyết tùy theo tính chất và mức độ của vụ việc... (Trích dẫn: [1])"}, {"id": 2, "type": "Hỏi điều kiện", "query": "Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?", "filter": {"audience": "seller"}, "gold_doc_id": "quy-dinh-dang-ban-san-pham", "alt_gold_doc_ids": ["shopee-listing-policy", "chinh-sach-cam-han-che-san-pham"], "key_phrase": "30%", "gold_answer": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4736, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#70", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "2. Quy định về hạn sử dụng của sản phẩm chính  a. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng v...", "full_content": "2. Quy định về hạn sử dụng của sản phẩm chính\n\na. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn."}, {"rank": 2, "score": 0.4113, "doc_id": "chinh-sach-cam-han-che-san-pham", "chunk_id": "chinh-sach-cam-han-che-san-pham#1", "source": "chinh-sach-cam-han-che-san-pham.md", "audience": "seller", "snippet": "2. PHẠM VI ÁP DỤNG  Chính sách này áp dụng đối với việc đăng bán sản phẩm, hàng hóa, dịch vụ trên Sàn Shopee. Mỗi khi đăng bán sản phẩm, Người Bán có...", "full_content": "2. PHẠM VI ÁP DỤNG\n\nChính sách này áp dụng đối với việc đăng bán sản phẩm, hàng hóa, dịch vụ trên Sàn Shopee. Mỗi khi đăng bán sản phẩm, Người Bán có trách nhiệm đảm bảo hàng hóa của mình tuân thủ Luật pháp hiện hành đồng thời không vi phạm các Điều Khoản Sử Dụng và Chính Sách Shopee."}, {"rank": 3, "score": 0.3625, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#54", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "Lưu ý:  - Ngoài các quy định về thông tin mô tả như nêu trên, thông tin về hàng hóa được đăng bán phải bao gồm các nội dung bắt buộc thể hiện trên nhã...", "full_content": "Lưu ý:\n\n- Ngoài các quy định về thông tin mô tả như nêu trên, thông tin về hàng hóa được đăng bán phải bao gồm các nội dung bắt buộc thể hiện trên nhãn hàng hóa theo quy định pháp luật về nhãn hàng hóa, trừ các thông tin có tính chất riêng biệt theo sản phẩm như: năm, tháng, ngày sản xuất; hạn sử dụng; số lô sản xuất; số khung, số máy;\n\n- Người Bán hàng hóa, dịch vụ phải đáp ứng điều kiện đầu tư, kinh doanh thuộc danh mục ngành, nghề đầu tư kinh doanh có điều kiện phải công bố số, ngày cấp và nơi cấp Giấy phép, Giấy chứng nhận đủ điều kiện, văn bản xác nhận, hoặc các hình thức văn bản khác theo quy định pháp luật về điều kiện kinh doanh của ngành, nghề đó. 5. Danh mục ngành hàng\n\na."}], "agent_answer": "[RAG Agent Answer] 2... (Trích dẫn: [1])"}, {"id": 3, "type": "Hỏi quy trình", "query": "Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "Bước 1", "gold_answer": "Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5456, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#34", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động. Đối với Người Bán n...", "full_content": "Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động. Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoài cung cấp theo quy định của Bộ Luật Dân Sự về đại diện. Chi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee."}, {"rank": 2, "score": 0.4375, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#8", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động. Đối với Người Bán n...", "full_content": "Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động. Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoài cung cấp theo quy định của Bộ Luật Dân Sự về đại diện. Quy Trình này được cập nhật và đăng tải vào ngày 15/3/2024."}, {"rank": 3, "score": 0.4164, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#0", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "# Quy trình giải quyết tranh chấp/xử lý khiếu nại  QUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI | Shopee Trung tâm trợ giúp  Xin chào, Sho...", "full_content": "# Quy trình giải quyết tranh chấp/xử lý khiếu nại\n\nQUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI | Shopee Trung tâm trợ giúp\n\nXin chào, Shopee có thể giúp gì cho bạn? QUY TRÌNH GIẢI QUYẾT TRANH CHẤP/ XỬ LÝ KHIẾU NẠI\n\n1. Quy Định Chung Về Giải Quyết Tranh Chấp/Xử Lý Khiếu Nại\n\nKhi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa các bên để đạt được sự đồng thuận về phương án giải quyết."}], "agent_answer": "[RAG Agent Answer] Các thuật ngữ viết hoa trong quy trình giải quyết tranh chấp, khiếu nại này sẽ có ý nghĩa như được quy định tại Quy Chế Hoạt Động... (Trích dẫn: [1])"}, {"id": 4, "type": "Liệt kê", "query": "Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?", "filter": null, "gold_doc_id": "chinh-sach-van-chuyen", "alt_gold_doc_ids": ["shopee-shipping"], "key_phrase": "từ chối", "gold_answer": "Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5131, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#27", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng. c. Trường hợp hàng hóa khô...", "full_content": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng. c. Trường hợp hàng hóa không đóng gói đúng quy định nhưng được bàn giao thành công cho đơn vị vận chuyển: Bưu kiện sẽ được đơn vị vận chuyển chuyển hoàn hoặc tiêu hủy (trong trường hợp xấu nhất) nếu xảy ra hư hỏng/bể vỡ, và không thể tiếp tục giao đến cho Người Mua."}, {"rank": 2, "score": 0.5028, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#22", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chu...", "full_content": "iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chuyển rất lớn nếu không có chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện."}, {"rank": 3, "score": 0.4919, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#3", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Phạm vi áp dụng     a. Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đóng gói...", "full_content": "Phạm vi áp dụng\n\n   a. Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đóng gói hàng hóa, các quyền, nghĩa vụ của các Bên liên quan đến việc vận chuyển hàng hóa mà Sàn Shopee hỗ trợ vận chuyển. b."}], "agent_answer": "[RAG Agent Answer] Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng... (Trích dẫn: [1])"}, {"id": 5, "type": "Cần metadata_filter", "query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter": {"audience": "buyer"}, "gold_doc_id": "chinh-sach-tra-hang-hoan-tien", "alt_gold_doc_ids": ["shopee-hoan-tien", "shopee-returns-refunds"], "key_phrase": "yêu cầu", "gold_answer": "Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).", "score": 1, "max_score": 2, "in_top3": true, "top1_match": false, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4643, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#11", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có li...", "full_content": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:\n\nlà Sản Phẩm Hạn Chế Trả Hàng; hoặc\n\nkhông đáp ứng Điều Kiện Trả Hàng; hoặc\n\nYêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc\n\nSản Phẩm tại Shopee Mall được trả lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc\n\nSản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người Mua, bao gồm nhưng không giới hạn ở trường hợp hư hại do Người Mua đóng gói không đúng quy cách. Xin lưu ý rằng quyết định của Shopee sẽ dựa trên danh sách điều khoản của các điều kiện có hiệu lực tại thời điểm đưa ra quyết định đó (bao gồm danh mục Sản Phẩm Được Loại Trừ, Điều Kiện Trả Hàng và Thời Gian Yêu Cầu Trả Hàng) và do đó theo Điều 1.5 ở trên, danh sách các Sản Phẩm Được Loại Trừ, Điều Kiện Trả Hàng và/hoặc Thời Gian Yêu Cầu Trả Hàng có thể khác với các điều khoản và điều kiện có hiệu lực tại thời điểm Người Mua tại Shopee Mall hoàn thành Yêu Cầu Trả Hàng/Hoàn Tiền và/hoặc hoàn trả lại Sản Phẩm Shopee Mall. Nếu Shopee từ chối Yêu Cầu Trả Hàng Hoàn Tiền, Shopee sẽ sắp xếp việc giao Sản Phẩm tại Shopee Mall tới địa chỉ của Người Mua mà Sản Phẩm tại Shopee Mall đã được giao lần đầu, và Shopee sẽ có quyền được nhận bồi thường từ Người Mua tại Shopee Mall đó về bất kỳ chi phí phát sinh nào trong việc giao lại Sản Phẩm tại Shopee Mall cho Người Mua."}, {"rank": 2, "score": 0.4053, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#27", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng. c. Trường hợp hàng hóa khô...", "full_content": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng. c. Trường hợp hàng hóa không đóng gói đúng quy định nhưng được bàn giao thành công cho đơn vị vận chuyển: Bưu kiện sẽ được đơn vị vận chuyển chuyển hoàn hoặc tiêu hủy (trong trường hợp xấu nhất) nếu xảy ra hư hỏng/bể vỡ, và không thể tiếp tục giao đến cho Người Mua."}, {"rank": 3, "score": 0.3939, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#28", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "Việc hoàn tiền cho Người Mua có thể được Shopee cân nhắc thực hiện mà không cần Người Mua phải hoàn trả hàng cho Người Bán. 6. YÊU CẦU ĐỐI VỚI SẢN PHẨ...", "full_content": "Việc hoàn tiền cho Người Mua có thể được Shopee cân nhắc thực hiện mà không cần Người Mua phải hoàn trả hàng cho Người Bán. 6. YÊU CẦU ĐỐI VỚI SẢN PHẨM HOÀN TRẢ \n\nĐể hạn chế các rủi ro phát sinh liên quan đến việc hoàn trả Sản Phẩm, Người Mua lưu ý cần phải đóng gói Sản Phẩm Hoàn Trả theo quy định về đóng gói hàng hóa được quy định tại Chính Sách Vận Chuyển Shopee và gửi trả Sản Phẩm bao gồm toàn bộ phụ kiện đi kèm, hóa đơn thuế GTGT, tem phiếu bảo hành (nếu có) và Sản Phẩm phải trong tình trạng nguyên vẹn như khi nhận hàng."}], "agent_answer": "[RAG Agent Answer] Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:... (Trích dẫn: [1])"}], "ab_test": {"query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter_applied": {"audience": "buyer"}, "filtered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#11", "audience": "buyer", "score": 0.4643, "snippet": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu c..."}, {"rank": 2, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#27", "audience": "buyer", "score": 0.4053, "snippet": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hà..."}, {"rank": 3, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#28", "audience": "buyer", "score": 0.3939, "snippet": "Việc hoàn tiền cho Người Mua có thể được Shopee cân nhắc thực hiện mà không cần Người Mua phải hoàn trả hàng cho Người B..."}], "unfiltered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#11", "audience": "buyer", "score": 0.4643, "snippet": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu c..."}, {"rank": 2, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#27", "audience": "buyer", "score": 0.4053, "snippet": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hà..."}, {"rank": 3, "doc_id": "chinh-sach-cam-han-che-san-pham", "chunk_id": "chinh-sach-cam-han-che-san-pham#33", "audience": "seller", "score": 0.4003, "snippet": "Bộ phận cơ thể người và hài cốt  a. Các bộ phận cơ thể con người: mắt, tim, thận,.. b...."}], "filter_helped": true, "analysis": "Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (chinh-sach-tra-hang-hoan-tien, dieu-khoan-dich-vu-shopee-mall, chinh-sach-van-chuyen), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent."}}, "recursive": {"strategy": "recursive", "name": "RecursiveChunker", "class_name": "RecursiveChunker", "params": {"chunk_size": 500, "separators": ["\\n\\n", "\\n", ". ", " ", ""]}, "strengths": "Tôn trọng cấu trúc phân cấp tự nhiên của văn bản (đoạn > dòng > câu); kiểm soát trần ký tự <= 500 rất tốt.", "weaknesses": "Cần nhiều bước đệ quy; nếu tài liệu phân cấp không đều thì số lượng chunk phát sinh có thể lớn hơn.", "stats": {"total_chunks": 856, "avg_length": 382.1, "min_length": 16, "max_length": 500}, "summary": {"relevant_in_top3_count": 4, "total_queries": 5, "top3_hit_rate": 80.0, "total_score": 9, "max_score": 10}, "queries": [{"id": 1, "type": "Tra số liệu", "query": "Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "07 ngày làm việc", "gold_answer": "Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4578, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#39", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee.Đối với các tranh chấp không phải là khiếu nại Trả Hà...", "full_content": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee.Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc."}, {"rank": 2, "score": 0.4578, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#5", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee.Đối với các tranh chấp không phải là khiếu nại Trả Hà...", "full_content": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee.Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc."}, {"rank": 3, "score": 0.4011, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#12", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với...", "full_content": "Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này.\n\n3.4. Tất cả các yêu cầu trả hàng hoàn tiền phải được thực hiện trên tài khoản Shopee của chính Người Mua đã đặt đơn hàng."}], "agent_answer": "[RAG Agent Answer] Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee... (Trích dẫn: [1])"}, {"id": 2, "type": "Hỏi điều kiện", "query": "Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?", "filter": {"audience": "seller"}, "gold_doc_id": "quy-dinh-dang-ban-san-pham", "alt_gold_doc_ids": ["shopee-listing-policy", "chinh-sach-cam-han-che-san-pham"], "key_phrase": "30%", "gold_answer": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4443, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#44", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "a. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện t...", "full_content": "a. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn."}, {"rank": 2, "score": 0.3793, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#37", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "- Người Bán hàng hóa, dịch vụ phải đáp ứng điều kiện đầu tư, kinh doanh thuộc danh mục ngành, nghề đầu tư kinh doanh có điều kiện phải công bố số, ngà...", "full_content": "- Người Bán hàng hóa, dịch vụ phải đáp ứng điều kiện đầu tư, kinh doanh thuộc danh mục ngành, nghề đầu tư kinh doanh có điều kiện phải công bố số, ngày cấp và nơi cấp Giấy phép, Giấy chứng nhận đủ điều kiện, văn bản xác nhận, hoặc các hình thức văn bản khác theo quy định pháp luật về điều kiện kinh doanh của ngành, nghề đó.\n\n \n\n5. Danh mục ngành hàng\n\na. Người đăng phải chọn đúng nhóm danh mục ngành hàng cho sản phẩm để có thể dễ dàng tiếp cận với khách hàng."}, {"rank": 3, "score": 0.3664, "doc_id": "chinh-sach-cam-han-che-san-pham", "chunk_id": "chinh-sach-cam-han-che-san-pham#1", "source": "chinh-sach-cam-han-che-san-pham.md", "audience": "seller", "snippet": "Chính sách này áp dụng đối với việc đăng bán sản phẩm, hàng hóa, dịch vụ trên Sàn Shopee. Mỗi khi đăng bán sản phẩm, Người Bán có trách nhiệm đảm bảo...", "full_content": "Chính sách này áp dụng đối với việc đăng bán sản phẩm, hàng hóa, dịch vụ trên Sàn Shopee. Mỗi khi đăng bán sản phẩm, Người Bán có trách nhiệm đảm bảo hàng hóa của mình tuân thủ Luật pháp hiện hành đồng thời không vi phạm các Điều Khoản Sử Dụng và Chính Sách Shopee. Vui lòng đọc kỹ các hướng dẫn dưới đây về Chính Sách Cấm/Hạn Chế Sản Phẩm mua bán trên Shopee."}], "agent_answer": "[RAG Agent Answer] a... (Trích dẫn: [1])"}, {"id": 3, "type": "Hỏi quy trình", "query": "Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "Bước 1", "gold_answer": "Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4824, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#35", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "6. Quy trình giải quyết tranh chấp/Xử lý khiếu nại  Khi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa...", "full_content": "6. Quy trình giải quyết tranh chấp/Xử lý khiếu nại\n\nKhi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa các bên để đạt được sự đồng thuận về phương án giải quyết.Nếu Người Bán, Người Mua và các bên có liên quan không thể thương lượng với nhau, Shopee có trách nhiệm giải quyết vụ việc theo quy định của pháp luật hiện hành, các quy định, chính sách trên Sàn Shopee."}, {"rank": 2, "score": 0.4245, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#46", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoà...", "full_content": "Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoài cung cấp theo quy định của Bộ Luật Dân Sự về đại diện.\n\nChi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee. \n\nIV. Giao dịch sản phẩm, dịch vụ của Sàn giao dịch TMĐT Ứng dụng ShopeeFood thông qua liên kết với Sàn giao dịch TMĐT Shopee:"}, {"rank": 3, "score": 0.4234, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#183", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "gồm nhân viên, người quản lý của Sàn Shopee, đối tác của Sàn Shopee) không liên quan, không có thẩm quyền trong quá trình giải quyết các khiếu nại, tr...", "full_content": "gồm nhân viên, người quản lý của Sàn Shopee, đối tác của Sàn Shopee) không liên quan, không có thẩm quyền trong quá trình giải quyết các khiếu nại, tranh chấp trên Sàn Shopee, hoặc (iv) có các hành vi đe dọa tính mạng, danh dự, nhân phẩm của thành viên khác trên Sàn Shopee cũng như của nhân viên, người quản lý, đối tác của Sàn Shopee trong quá trình giải quyết khiếu nại, tranh chấp trên Sàn Shopee."}], "agent_answer": "[RAG Agent Answer] 6... (Trích dẫn: [1])"}, {"id": 4, "type": "Liệt kê", "query": "Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?", "filter": null, "gold_doc_id": "chinh-sach-van-chuyen", "alt_gold_doc_ids": ["shopee-shipping"], "key_phrase": "từ chối", "gold_answer": "Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5028, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#17", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chu...", "full_content": "iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chuyển rất lớn nếu không có chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện."}, {"rank": 2, "score": 0.4945, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#2", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "2. Phạm vi áp dụng     a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đón...", "full_content": "2. Phạm vi áp dụng\n\n   a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đóng gói hàng hóa, các quyền, nghĩa vụ của các Bên liên quan đến việc vận chuyển hàng hóa mà Sàn Shopee hỗ trợ vận chuyển."}, {"rank": 3, "score": 0.4697, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#13", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "i. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất trong quá trình vận chuyển rất lớn...", "full_content": "i. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất trong quá trình vận chuyển rất lớn nếu không có chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện dễ hư hại/ tổn thất do đặc tính sản phẩm đó."}], "agent_answer": "[RAG Agent Answer] iii... (Trích dẫn: [1])"}, {"id": 5, "type": "Cần metadata_filter", "query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter": {"audience": "buyer"}, "gold_doc_id": "chinh-sach-tra-hang-hoan-tien", "alt_gold_doc_ids": ["shopee-hoan-tien", "shopee-returns-refunds"], "key_phrase": "yêu cầu", "gold_answer": "Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).", "score": 1, "max_score": 2, "in_top3": false, "top1_match": false, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5138, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#18", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn t...", "full_content": "1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:\n\nlà Sản Phẩm Hạn Chế Trả Hàng; hoặc\n\nkhông đáp ứng Điều Kiện Trả Hàng; hoặc\n\nYêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc\n\nSản Phẩm tại Shopee Mall được trả lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc"}, {"rank": 2, "score": 0.4089, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#42", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "- Tình trạng bao bì gói hàng khi Người Bán gửi hàng đi;     ii. Video và biên bản đồng kiểm với đơn vị vận chuyển (tham khảo mẫu Biên bản Shopee khuyê...", "full_content": "- Tình trạng bao bì gói hàng khi Người Bán gửi hàng đi;\n\n   ii. Video và biên bản đồng kiểm với đơn vị vận chuyển (tham khảo mẫu Biên bản Shopee khuyên dùng TẠI ĐÂY hoặc TẠI ĐÂY) ghi nhận tình trạng đơn hàng hoàn trả, hoặc Video quá trình Người Bán mở hàng hoàn thấy rõ (video & biên bản đồng kiểm với đơn vị vận chuyển là bằng chứng mạnh nhất được khuyến khích cung cấp khi phát sinh khiếu nại):\n\n- Thông tin đơn hàng (mã vận đơn, mã đơn hàng);"}, {"rank": 3, "score": 0.3948, "doc_id": "chinh-sach-bao-mat", "chunk_id": "chinh-sach-bao-mat#38", "source": "chinh-sach-bao-mat.md", "audience": "buyer", "snippet": "để phục vụ mục đích nhận dạng, xác minh, đánh giá pháp lý hoặc để nhận biết khách hàng;  để đánh giá và đưa ra các quyết định liên quan đến hồ sơ tín...", "full_content": "để phục vụ mục đích nhận dạng, xác minh, đánh giá pháp lý hoặc để nhận biết khách hàng;\n\nđể đánh giá và đưa ra các quyết định liên quan đến hồ sơ tín dụng và rủi ro của bạn và tính đủ điều kiện để cho vay, trả sau hoặc cho các sản phẩm tín dụng, nếu có;\n\nđể duy trì và quản lý bất kỳ bản cập nhật phần mềm nào và/hoặc các bản cập nhật khác và sự hỗ trợ có thể được yêu cầu tùy lúc nhằm đảm bảo Các Dịch Vụ của chúng tôi hoạt động suôn sẻ;"}], "agent_answer": "[RAG Agent Answer] 1... (Trích dẫn: [1])"}], "ab_test": {"query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter_applied": {"audience": "buyer"}, "filtered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#18", "audience": "buyer", "score": 0.5138, "snippet": "1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”)..."}, {"rank": 2, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#42", "audience": "buyer", "score": 0.4089, "snippet": "- Tình trạng bao bì gói hàng khi Người Bán gửi hàng đi;     ii. Video và biên bản đồng kiểm với đơn vị vận chuyển (tham ..."}, {"rank": 3, "doc_id": "chinh-sach-bao-mat", "chunk_id": "chinh-sach-bao-mat#38", "audience": "buyer", "score": 0.3948, "snippet": "để phục vụ mục đích nhận dạng, xác minh, đánh giá pháp lý hoặc để nhận biết khách hàng;  để đánh giá và đưa ra các quyết..."}], "unfiltered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#18", "audience": "buyer", "score": 0.5138, "snippet": "1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”)..."}, {"rank": 2, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#42", "audience": "buyer", "score": 0.4089, "snippet": "- Tình trạng bao bì gói hàng khi Người Bán gửi hàng đi;     ii. Video và biên bản đồng kiểm với đơn vị vận chuyển (tham ..."}, {"rank": 3, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#39", "audience": "seller", "score": 0.4041, "snippet": "d. Người bán lưu ý, việc lựa chọn sai danh mục ngành hàng có thể bị coi là hành vi gian lận mã giảm giá của Shopee trong..."}], "filter_helped": true, "analysis": "Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (dieu-khoan-dich-vu-shopee-mall, chinh-sach-bao-mat, chinh-sach-van-chuyen), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent."}}, "header_section": {"strategy": "header_section", "name": "HeaderSectionChunker", "class_name": "HeaderSectionChunker", "params": {"max_chunk_size": 600, "structure": "Headers (#) & Numbered Articles"}, "strengths": "Bám sát các tiêu đề (#) và điều khoản đánh số (Mục 1, 2..., Bước 1, 2...); giữ nguyên vẹn từng quy định/quy trình thương mại điện tử.", "weaknesses": "Phụ thuộc vào mức độ cấu trúc hóa của văn bản; các tài liệu không có đề mục rõ ràng sẽ fallback về đệ quy.", "stats": {"total_chunks": 789, "avg_length": 414.4, "min_length": 14, "max_length": 600}, "summary": {"relevant_in_top3_count": 5, "total_queries": 5, "top3_hit_rate": 100.0, "total_score": 9, "max_score": 10}, "queries": [{"id": 1, "type": "Tra số liệu", "query": "Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "07 ngày làm việc", "gold_answer": "Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4401, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#39", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả H...", "full_content": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. Trong trường hợp vụ việc có nhiều thông tin, tình tiết phức tạp thì thời hạn giải quyết sẽ được kéo dài hơn."}, {"rank": 2, "score": 0.4401, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#5", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả H...", "full_content": "Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee. Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. Trong trường hợp vụ việc có nhiều thông tin, tình tiết phức tạp thì thời hạn giải quyết sẽ được kéo dài hơn."}, {"rank": 3, "score": 0.4131, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#8", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "3.3.  Đối với các đơn hàng được thanh toán bằng hình thức Thanh toán khi nhận hàng (COD) và/hoặc Chuyển khoản ngân hàng, tài khoản Shopee của Người Mu...", "full_content": "3.3.  Đối với các đơn hàng được thanh toán bằng hình thức Thanh toán khi nhận hàng (COD) và/hoặc Chuyển khoản ngân hàng, tài khoản Shopee của Người Mua phải liên kết với các phương thức nhận hoàn tiền hợp lệ theo quy định áp dụng của Shopee (ví dụ như Tài Khoản Ngân Hàng và/hoặc các ví điện tử hợp lệ như Ví ShopeePay) trước khi thực hiện yêu cầu Trả hàng / Hoàn tiền. Để làm rõ, Người Mua sẽ không thể thực hiện yêu cầu Trả hàng/ Hoàn tiền trong trường hợp tài khoản Shopee của Người Mua không liên kết thành công với các phương thức nhận hoàn tiền theo quy định tại Điều 3.3 này."}], "agent_answer": "[RAG Agent Answer] Bước 3: Khiếu nại Trả Hàng/Hoàn Tiền được xử lý theo Chính Sách Trả Hàng Và Hoàn Tiền của Shopee... (Trích dẫn: [1])"}, {"id": 2, "type": "Hỏi điều kiện", "query": "Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?", "filter": {"audience": "seller"}, "gold_doc_id": "quy-dinh-dang-ban-san-pham", "alt_gold_doc_ids": ["shopee-listing-policy", "chinh-sach-cam-han-che-san-pham"], "key_phrase": "30%", "gold_answer": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4736, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#45", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "2. Quy định về hạn sử dụng của sản phẩm chính  a. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng v...", "full_content": "2. Quy định về hạn sử dụng của sản phẩm chính\n\na. Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn."}, {"rank": 2, "score": 0.366, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#3", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "1. Nguyên tắc chung  a. Đăng bán sản phẩm trên Shopee là hoạt động của Người Bán dùng hàng hóa, dịch vụ và tài liệu về hàng hóa, dịch vụ để giới thiệu...", "full_content": "1. Nguyên tắc chung\n\na. Đăng bán sản phẩm trên Shopee là hoạt động của Người Bán dùng hàng hóa, dịch vụ và tài liệu về hàng hóa, dịch vụ để giới thiệu với khách hàng về hàng hóa, dịch vụ đó.\n\nb. Khi đăng bán sản phẩm trên Shopee, Người Bán có trách nhiệm tuân thủ các quy định tại Điều 117, Điều 120.4, Điều 121 của Luật Thương Mại và các văn bản quy phạm pháp luật có liên quan đến hoạt động trưng bày, giới thiệu hàng hóa, dịch vụ. Đối với Người Bán là pháp nhân có vốn đầu tư nước ngoài, Người Bán cần có Giấy phép kinh doanh phù hợp với quy định của pháp luật hiện hành."}, {"rank": 3, "score": 0.3207, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#19", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "+ Phiếu công bố mỹ phẩm do Bộ/ Sở Y tế cấp, trong đó thể hiện thông tin chủ thể chịu trách nhiệm đưa sản phẩm ra thị trường;  + Chứng nhận đại lý/Hợp...", "full_content": "+ Phiếu công bố mỹ phẩm do Bộ/ Sở Y tế cấp, trong đó thể hiện thông tin chủ thể chịu trách nhiệm đưa sản phẩm ra thị trường;\n\n+ Chứng nhận đại lý/Hợp đồng mua bán/hóa đơn nhập hàng từ công ty sản xuất (nếu Người Bán là đại lý);\n\n+ Hóa đơn nhập hàng và chứng nhận đại lý của bên phát hành hóa đơn (nếu Người Bán nhập hàng từ bên trung gian).\n\n3.2. Thực phẩm chức năng/thực phẩm bảo vệ sức khỏe\n\n- Người Bán khi đăng bán sản phẩm Thực phẩm chức năng/thực phẩm bảo vệ sức khỏe cần có các giấy tờ sau:\n\n+ Xác Nhận Công Bố Phù Hợp Quy Định An Toàn Thực Phẩm;"}], "agent_answer": "[RAG Agent Answer] 2... (Trích dẫn: [1])"}, {"id": 3, "type": "Hỏi quy trình", "query": "Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "Bước 1", "gold_answer": "Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.6761, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#35", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "6. Quy trình giải quyết tranh chấp/Xử lý khiếu nại...", "full_content": "6. Quy trình giải quyết tranh chấp/Xử lý khiếu nại"}, {"rank": 2, "score": 0.5151, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#45", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoà...", "full_content": "Đối với Người Bán nước ngoài: Shopee là đại diện giải quyết các khiếu nại của người tiêu dùng liên quan đến hàng hóa, dịch vụ do thương nhân nước ngoài cung cấp theo quy định của Bộ Luật Dân Sự về đại diện.\n\nChi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee."}, {"rank": 3, "score": 0.4582, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#1", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "1. Quy Định Chung Về Giải Quyết Tranh Chấp/Xử Lý Khiếu Nại...", "full_content": "1. Quy Định Chung Về Giải Quyết Tranh Chấp/Xử Lý Khiếu Nại"}], "agent_answer": "[RAG Agent Answer] 6... (Trích dẫn: [1])"}, {"id": 4, "type": "Liệt kê", "query": "Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?", "filter": null, "gold_doc_id": "chinh-sach-van-chuyen", "alt_gold_doc_ids": ["shopee-shipping"], "key_phrase": "từ chối", "gold_answer": "Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5028, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#18", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chu...", "full_content": "iii. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất, cháy nổ trong quá trình vận chuyển rất lớn nếu không có chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện."}, {"rank": 2, "score": 0.4945, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#3", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "2. Phạm vi áp dụng     a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đón...", "full_content": "2. Phạm vi áp dụng\n\n   a.    Chính Sách Vận Chuyển này quy định về các loại hàng hóa không hỗ trợ vận chuyển, vận chuyển có điều kiện, quy định về đóng gói hàng hóa, các quyền, nghĩa vụ của các Bên liên quan đến việc vận chuyển hàng hóa mà Sàn Shopee hỗ trợ vận chuyển."}, {"rank": 3, "score": 0.4697, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#14", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "i. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất trong quá trình vận chuyển rất lớn...", "full_content": "i. Các sản phẩm có đặc tính trong danh sách trên hoặc có đặc tính tương tự, khả năng xảy ra rủi ro hư hại, tổn thất trong quá trình vận chuyển rất lớn nếu không có chế độ cảnh báo và vận chuyển riêng. Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện dễ hư hại/ tổn thất do đặc tính sản phẩm đó."}], "agent_answer": "[RAG Agent Answer] iii... (Trích dẫn: [1])"}, {"id": 5, "type": "Cần metadata_filter", "query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter": {"audience": "buyer"}, "gold_doc_id": "chinh-sach-tra-hang-hoan-tien", "alt_gold_doc_ids": ["shopee-hoan-tien", "shopee-returns-refunds"], "key_phrase": "yêu cầu", "gold_answer": "Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).", "score": 1, "max_score": 2, "in_top3": true, "top1_match": false, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5087, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#17", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "1.5.     Shopee bảo lưu quyền: (a) bổ sung hoặc sửa đổi danh sách các Sản Phẩm Được Loại Trừ và/hoặc Điều Kiện Trả Hàng và (b) sửa đổi, chấm dứt hoặc...", "full_content": "1.5.     Shopee bảo lưu quyền: (a) bổ sung hoặc sửa đổi danh sách các Sản Phẩm Được Loại Trừ và/hoặc Điều Kiện Trả Hàng và (b) sửa đổi, chấm dứt hoặc đình chỉ Chính Sách Trả Hàng Hoàn Tiền của Shopee Mall (bao gồm cả Thời Gian Yêu Cầu Trả Hàng), trong từng trường hợp, vào bất kỳ thời điểm nào theo quyết định của Shopee.\n\n1.6.     Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:\n\nlà Sản Phẩm Hạn Chế Trả Hàng; hoặc\n\nkhông đáp ứng Điều Kiện Trả Hàng; hoặc"}, {"rank": 2, "score": 0.4181, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#18", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "Yêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc  Sản Phẩm tại Shopee Mall được trả lại theo cách thức...", "full_content": "Yêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc\n\nSản Phẩm tại Shopee Mall được trả lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc\n\nSản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người Mua, bao gồm nhưng không giới hạn ở trường hợp hư hại do Người Mua đóng gói không đúng quy cách."}, {"rank": 3, "score": 0.4048, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#25", "source": "chinh-sach-tra-hang-hoan-tien.md", "audience": "buyer", "snippet": "6. YÊU CẦU ĐỐI VỚI SẢN PHẨM HOÀN TRẢ   Để hạn chế các rủi ro phát sinh liên quan đến việc hoàn trả Sản Phẩm, Người Mua lưu ý cần phải đóng gói Sản Phẩ...", "full_content": "6. YÊU CẦU ĐỐI VỚI SẢN PHẨM HOÀN TRẢ \n\nĐể hạn chế các rủi ro phát sinh liên quan đến việc hoàn trả Sản Phẩm, Người Mua lưu ý cần phải đóng gói Sản Phẩm Hoàn Trả theo quy định về đóng gói hàng hóa được quy định tại Chính Sách Vận Chuyển Shopee và gửi trả Sản Phẩm bao gồm toàn bộ phụ kiện đi kèm, hóa đơn thuế GTGT, tem phiếu bảo hành (nếu có) và Sản Phẩm phải trong tình trạng nguyên vẹn như khi nhận hàng.Người Mua bắt buộc phải quay video và/hoặc chụp lại ảnh Sản Phẩm ngay khi nhận được và trong lúc đóng gói Sản Phẩm Hoàn Trả về để làm bằng chứng đối chiếu/khiếu nại về sau."}], "agent_answer": "[RAG Agent Answer] 1... (Trích dẫn: [1])"}], "ab_test": {"query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter_applied": {"audience": "buyer"}, "filtered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#17", "audience": "buyer", "score": 0.5087, "snippet": "1.5.     Shopee bảo lưu quyền: (a) bổ sung hoặc sửa đổi danh sách các Sản Phẩm Được Loại Trừ và/hoặc Điều Kiện Trả Hàng ..."}, {"rank": 2, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#18", "audience": "buyer", "score": 0.4181, "snippet": "Yêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc  Sản Phẩm tại Shopee Mal..."}, {"rank": 3, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#25", "audience": "buyer", "score": 0.4048, "snippet": "6. YÊU CẦU ĐỐI VỚI SẢN PHẨM HOÀN TRẢ   Để hạn chế các rủi ro phát sinh liên quan đến việc hoàn trả Sản Phẩm, Người Mua l..."}], "unfiltered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#17", "audience": "buyer", "score": 0.5087, "snippet": "1.5.     Shopee bảo lưu quyền: (a) bổ sung hoặc sửa đổi danh sách các Sản Phẩm Được Loại Trừ và/hoặc Điều Kiện Trả Hàng ..."}, {"rank": 2, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#18", "audience": "buyer", "score": 0.4181, "snippet": "Yêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc  Sản Phẩm tại Shopee Mal..."}, {"rank": 3, "doc_id": "chinh-sach-tra-hang-hoan-tien", "chunk_id": "chinh-sach-tra-hang-hoan-tien#25", "audience": "buyer", "score": 0.4048, "snippet": "6. YÊU CẦU ĐỐI VỚI SẢN PHẨM HOÀN TRẢ   Để hạn chế các rủi ro phát sinh liên quan đến việc hoàn trả Sản Phẩm, Người Mua l..."}], "filter_helped": true, "analysis": "Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (chinh-sach-tra-hang-hoan-tien, dieu-khoan-dich-vu-shopee-mall), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent."}}, "semantic": {"strategy": "semantic", "name": "SemanticChunker", "class_name": "SemanticChunker", "params": {"similarity_threshold": 0.65, "max_chunk_size": 800}, "strengths": "Tự động phát hiện ranh giới chuyển dịch ngữ nghĩa (semantic shift) bằng vector embeddings; gom các ý cùng chủ đề chặt chẽ.", "weaknesses": "Chi phí tính toán cao hơn do cần tính embeddings theo từng câu; kích thước chunk phụ thuộc độ dài cụm ý.", "stats": {"total_chunks": 2243, "avg_length": 145.0, "min_length": 1, "max_length": 3026}, "summary": {"relevant_in_top3_count": 4, "total_queries": 5, "top3_hit_rate": 80.0, "total_score": 9, "max_score": 10}, "queries": [{"id": 1, "type": "Tra số liệu", "query": "Thời hạn giải quyết các tranh chấp không phải là Trả Hàng/Hoàn Tiền là bao nhiêu ngày làm việc kể từ khi nhận đủ tài liệu?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "07 ngày làm việc", "gold_answer": "Trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc. (Trích từ quy-trinh-giai-quyet-tranh-chap.md Bước 3).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4305, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#89", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến...", "full_content": "Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc."}, {"rank": 2, "score": 0.4305, "doc_id": "quy-trinh-giai-quyet-tranh-chap", "chunk_id": "quy-trinh-giai-quyet-tranh-chap#11", "source": "quy-trinh-giai-quyet-tranh-chap.md", "audience": "buyer", "snippet": "Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến...", "full_content": "Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc."}, {"rank": 3, "score": 0.4259, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#119", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Khiếu nại với đơn trả hàng hoàn tiền: Xem chi tiết tại Chính sách Trả hàng và Hoàn tiền     b....", "full_content": "Khiếu nại với đơn trả hàng hoàn tiền: Xem chi tiết tại Chính sách Trả hàng và Hoàn tiền\n\n   b."}], "agent_answer": "[RAG Agent Answer] Đối với các tranh chấp không phải là khiếu nại Trả Hàng/Hoàn Tiền, Shopee yêu cầu các bên tranh chấp cung cấp đầy đủ thông tin/tài liệu liên quan đến vụ việc, và đưa ra hướng giải quyết dựa trên các thông tin/tài liệu thu thập được trong vòng 07 ngày làm việc kể từ ngày nhận được đầy đủ các thông tin/tài liệu có liên quan đến vụ việc... (Trích dẫn: [1])"}, {"id": 2, "type": "Hỏi điều kiện", "query": "Điều kiện về tỷ lệ và thời hạn sử dụng tối thiểu đối với hàng hóa khi người bán giao đi là gì?", "filter": {"audience": "seller"}, "gold_doc_id": "quy-dinh-dang-ban-san-pham", "alt_gold_doc_ids": ["shopee-listing-policy", "chinh-sach-cam-han-che-san-pham"], "key_phrase": "30%", "gold_answer": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn. (Trích từ quy-dinh-dang-ban-san-pham.md mục 3.a).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4386, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#211", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại...", "full_content": "Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn."}, {"rank": 2, "score": 0.3939, "doc_id": "chinh-sach-cam-han-che-san-pham", "chunk_id": "chinh-sach-cam-han-che-san-pham#5", "source": "chinh-sach-cam-han-che-san-pham.md", "audience": "seller", "snippet": "Mỗi khi đăng bán sản phẩm, Người Bán có trách nhiệm đảm bảo hàng hóa của mình tuân thủ Luật pháp hiện hành đồng thời không vi phạm các Điều Khoản Sử D...", "full_content": "Mỗi khi đăng bán sản phẩm, Người Bán có trách nhiệm đảm bảo hàng hóa của mình tuân thủ Luật pháp hiện hành đồng thời không vi phạm các Điều Khoản Sử Dụng và Chính Sách Shopee."}, {"rank": 3, "score": 0.3538, "doc_id": "quy-dinh-dang-ban-san-pham", "chunk_id": "quy-dinh-dang-ban-san-pham#86", "source": "quy-dinh-dang-ban-san-pham.md", "audience": "seller", "snippet": "Quy định riêng với một số ngành hàng  3.1....", "full_content": "Quy định riêng với một số ngành hàng\n\n3.1."}], "agent_answer": "[RAG Agent Answer] Người Bán chỉ được phép bán các loại hàng hóa mà khi giao đi phải còn ít nhất 30% thời hạn sử dụng và còn ít nhất 30 ngày, tính từ thời điểm hiện tại đến ngày hết hạn... (Trích dẫn: [1])"}, {"id": 3, "type": "Hỏi quy trình", "query": "Quy trình giải quyết tranh chấp hoặc xử lý khiếu nại trên sàn Shopee gồm các bước nào?", "filter": null, "gold_doc_id": "quy-trinh-giai-quyet-tranh-chap", "alt_gold_doc_ids": ["shopee-disputes", "quy-che-hoat-dong-san-thuong-mai-dien-tu"], "key_phrase": "Bước 1", "gold_answer": "Gồm 4 bước: Bước 1: Khiếu nại qua ứng dụng Shopee (mục Đơn Mua) hoặc các phương thức liên hệ; Bước 2: Shopee tiếp nhận và xác minh thông tin; Bước 3: Xử lý theo Chính sách Trả hàng và Hoàn tiền hoặc yêu cầu các bên cung cấp tài liệu trong vòng 07 ngày làm việc; Bước 4: Chuyển cơ quan nhà nước có thẩm quyền nếu vượt thẩm quyền. (Trích từ quy-trinh-giai-quyet-tranh-chap.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.4829, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#103", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Chi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee....", "full_content": "Chi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee."}, {"rank": 2, "score": 0.4757, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#80", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Quy trình giải quyết tranh chấp/Xử lý khiếu nại  Khi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa cá...", "full_content": "Quy trình giải quyết tranh chấp/Xử lý khiếu nại\n\nKhi phát sinh tranh chấp hoặc khiếu nại, Shopee khuyến khích giải pháp thương lượng, hòa giải giữa các bên để đạt được sự đồng thuận về phương án giải quyết."}, {"rank": 3, "score": 0.4032, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#532", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Thành viên không được có các hoạt động mang tính gây rối cản trở hoạt động kinh doanh bình thường của Sàn Shopee cũng như của những thành viên khác tr...", "full_content": "Thành viên không được có các hoạt động mang tính gây rối cản trở hoạt động kinh doanh bình thường của Sàn Shopee cũng như của những thành viên khác trên Sàn Shopee bao gồm nhưng không giới hạn (i) thực hiện việc khiếu nại vô căn cứ về các hoạt động trên Sàn Shopee của các thành viên khác, (ii) thực hiện khiếu nại, gửi email, tin nhắn, thông báo nhiều lần về cùng một vụ việc đã được Sàn Shopee đưa ra quyết định cuối cùng (iii) gửi email, tin nhắn, thông báo đến nhiều tổ chức cũng như cá nhân (bao gồm nhân viên, người quản lý của Sàn Shopee, đối tác của Sàn Shopee) không liên quan, không có thẩm quyền trong quá trình giải quyết các khiếu nại, tranh chấp trên Sàn Shopee, hoặc (iv) có các hành vi đe dọa tính mạng, danh dự, nhân phẩm của thành viên khác trên Sàn Shopee cũng như của nhân viên, người quản lý, đối tác của Sàn Shopee trong quá trình giải quyết khiếu nại, tranh chấp trên Sàn Shopee."}], "agent_answer": "[RAG Agent Answer] Chi tiết vui lòng tham khảo Quy trình giải quyết tranh chấp, xử lý khiếu nại được công bố trên Sàn TMĐT Shopee... (Trích dẫn: [1])"}, {"id": 4, "type": "Liệt kê", "query": "Liệt kê các trường hợp đơn vị vận chuyển có quyền từ chối tiếp nhận vận chuyển kiện hàng?", "filter": null, "gold_doc_id": "chinh-sach-van-chuyen", "alt_gold_doc_ids": ["shopee-shipping"], "key_phrase": "từ chối", "gold_answer": "Đơn vị vận chuyển có quyền từ chối khi hàng thuộc danh mục hàng có rủi ro lớn khi vận chuyển/cháy nổ; không đóng gói đúng quy định; hoặc kích thước/khối lượng vượt quá giới hạn cho phép; hoặc thông tin chênh lệch thực tế. (Trích từ chinh-sach-van-chuyen.md).", "score": 2, "max_score": 2, "in_top3": true, "top1_match": true, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5867, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#66", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển khô...", "full_content": "Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện."}, {"rank": 2, "score": 0.5637, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#79", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng....", "full_content": "Trường hợp hàng hóa không đóng gói đúng quy định tại mục a nêu trên: đơn vị vận chuyển, shipper có quyền từ chối nhận hàng."}, {"rank": 3, "score": 0.5416, "doc_id": "chinh-sach-van-chuyen", "chunk_id": "chinh-sach-van-chuyen#54", "source": "chinh-sach-van-chuyen.md", "audience": "buyer", "snippet": "Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển khô...", "full_content": "Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện dễ hư hại/ tổn thất do đặc tính sản phẩm đó."}], "agent_answer": "[RAG Agent Answer] Do vậy, đơn vị vận chuyển, shipper có quyền từ chối hỗ trợ vận chuyển nếu đánh giá đơn hàng có rủi ro lớn khi vận chuyển hoặc do đơn vị vận chuyển không đáp ứng được điều kiện để vận chuyển bưu kiện... (Trích dẫn: [1])"}, {"id": 5, "type": "Cần metadata_filter", "query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter": {"audience": "buyer"}, "gold_doc_id": "chinh-sach-tra-hang-hoan-tien", "alt_gold_doc_ids": ["shopee-hoan-tien", "shopee-returns-refunds"], "key_phrase": "yêu cầu", "gold_answer": "Người Mua có quyền gửi yêu cầu Trả hàng/Hoàn tiền trên ứng dụng Shopee khi nhận hàng sai hoặc hư hại, cần cung cấp bằng chứng (hình ảnh/video mở gói hàng) và gửi trả hàng nguyên vẹn theo hướng dẫn. (Trích từ chinh-sach-tra-hang-hoan-tien.md).", "score": 1, "max_score": 2, "in_top3": false, "top1_match": false, "content_has_key": true, "top_chunks": [{"rank": 1, "score": 0.5306, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#31", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có li...", "full_content": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:\n\nlà Sản Phẩm Hạn Chế Trả Hàng; hoặc\n\nkhông đáp ứng Điều Kiện Trả Hàng; hoặc\n\nYêu cầu Trả Hàng/Hoàn Tiền được hoàn thành sau khi Thời Gian Yêu Cầu Trả Hàng đã chấm dứt; hoặc\n\nSản Phẩm tại Shopee Mall được trả lại theo cách thức không phù hợp với Điều 1.2 nói trên; hoặc\n\nSản Phẩm Shopee Mall Hoàn Trả bị hư hại do lỗi của Người Mua, bao gồm nhưng không giới hạn ở trường hợp hư hại do Người Mua đóng gói không đúng quy cách."}, {"rank": 2, "score": 0.4819, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#318", "source": "quy-che-hoat-dong-san-thuong-mai-dien-tu.md", "audience": "buyer", "snippet": "Bộ phận cơ thể người và hài cốt  a....", "full_content": "Bộ phận cơ thể người và hài cốt\n\na."}, {"rank": 3, "score": 0.4005, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#32", "source": "dieu-khoan-dich-vu-shopee-mall.md", "audience": "buyer", "snippet": "Xin lưu ý rằng quyết định của Shopee sẽ dựa trên danh sách điều khoản của các điều kiện có hiệu lực tại thời điểm đưa ra quyết định đó (bao gồm danh m...", "full_content": "Xin lưu ý rằng quyết định của Shopee sẽ dựa trên danh sách điều khoản của các điều kiện có hiệu lực tại thời điểm đưa ra quyết định đó (bao gồm danh mục Sản Phẩm Được Loại Trừ, Điều Kiện Trả Hàng và Thời Gian Yêu Cầu Trả Hàng) và do đó theo Điều 1.5 ở trên, danh sách các Sản Phẩm Được Loại Trừ, Điều Kiện Trả Hàng và/hoặc Thời Gian Yêu Cầu Trả Hàng có thể khác với các điều khoản và điều kiện có hiệu lực tại thời điểm Người Mua tại Shopee Mall hoàn thành Yêu Cầu Trả Hàng/Hoàn Tiền và/hoặc hoàn trả lại Sản Phẩm Shopee Mall."}], "agent_answer": "[RAG Agent Answer] Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu cầu trả hàng và hoàn tiền có liên quan mà theo đó:... (Trích dẫn: [1])"}], "ab_test": {"query": "Quy định và thủ tục xử lý khi phát sinh yêu cầu đổi trả đối với sản phẩm giao sai hoặc hư hỏng là gì?", "filter_applied": {"audience": "buyer"}, "filtered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#31", "audience": "buyer", "score": 0.5306, "snippet": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu c..."}, {"rank": 2, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#318", "audience": "buyer", "score": 0.4819, "snippet": "Bộ phận cơ thể người và hài cốt  a...."}, {"rank": 3, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#32", "audience": "buyer", "score": 0.4005, "snippet": "Xin lưu ý rằng quyết định của Shopee sẽ dựa trên danh sách điều khoản của các điều kiện có hiệu lực tại thời điểm đưa ra..."}], "unfiltered_results": [{"rank": 1, "doc_id": "dieu-khoan-dich-vu-shopee-mall", "chunk_id": "dieu-khoan-dich-vu-shopee-mall#31", "audience": "buyer", "score": 0.5306, "snippet": "Với quyết định của mình, Shopee có thể từ chối chấp nhận Sản Phẩm Shopee Mall bị hoàn trả (“Sản Phẩm Hoàn Trả”) và yêu c..."}, {"rank": 2, "doc_id": "chinh-sach-cam-han-che-san-pham", "chunk_id": "chinh-sach-cam-han-che-san-pham#99", "audience": "seller", "score": 0.4819, "snippet": "Bộ phận cơ thể người và hài cốt  a...."}, {"rank": 3, "doc_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu", "chunk_id": "quy-che-hoat-dong-san-thuong-mai-dien-tu#318", "audience": "buyer", "score": 0.4819, "snippet": "Bộ phận cơ thể người và hài cốt  a...."}], "filter_helped": true, "analysis": "Lọc metadata {'audience': 'buyer'} đảm bảo 100% kết quả truy xuất nằm trong phạm vi chính sách bảo vệ Người Mua (dieu-khoan-dich-vu-shopee-mall, quy-che-hoat-dong-san-thuong-mai-dien-tu), loại bỏ triệt để các điều khoản dành riêng cho Người Bán (seller) khỏi ngữ cảnh của Agent."}}}, "best_strategy": "fixed_size", "comparison_table": [{"strategy": "fixed_size", "name": "FixedSizeChunker", "class_name": "FixedSizeChunker", "total_chunks": 734, "avg_length": 497.7, "min_length": 117, "max_length": 500, "top3_recall": "5/5", "top3_recall_pct": 100.0, "total_score": 9, "max_score": 10, "strengths": "Cắt khối kích thước đồng đều (500 ký tự); thời gian xử lý cực nhanh; có overlap 50 ký tự giảm mất mát ngữ cảnh biên.", "weaknesses": "Cắt ngang câu hoặc đoạn văn bản pháp lý; có thể xé đôi định nghĩa điều khoản hoặc bảng biểu."}, {"strategy": "sentence", "name": "SentenceChunker", "class_name": "SentenceChunker", "total_chunks": 759, "avg_length": 430.4, "min_length": 24, "max_length": 3747, "top3_recall": "5/5", "top3_recall_pct": 100.0, "total_score": 9, "max_score": 10, "strengths": "Đảm bảo ngữ pháp và ranh giới câu trọn vẹn; các luận điểm pháp lý không bị ngắt quãng giữa chừng.", "weaknesses": "Không kiểm soát được độ dài ký tự tối đa (chunk có thể quá ngắn hoặc quá dài nếu câu phức); độ dài không đồng đều."}, {"strategy": "recursive", "name": "RecursiveChunker", "class_name": "RecursiveChunker", "total_chunks": 856, "avg_length": 382.1, "min_length": 16, "max_length": 500, "top3_recall": "4/5", "top3_recall_pct": 80.0, "total_score": 9, "max_score": 10, "strengths": "Tôn trọng cấu trúc phân cấp tự nhiên của văn bản (đoạn > dòng > câu); kiểm soát trần ký tự <= 500 rất tốt.", "weaknesses": "Cần nhiều bước đệ quy; nếu tài liệu phân cấp không đều thì số lượng chunk phát sinh có thể lớn hơn."}, {"strategy": "header_section", "name": "HeaderSectionChunker", "class_name": "HeaderSectionChunker", "total_chunks": 789, "avg_length": 414.4, "min_length": 14, "max_length": 600, "top3_recall": "5/5", "top3_recall_pct": 100.0, "total_score": 9, "max_score": 10, "strengths": "Bám sát các tiêu đề (#) và điều khoản đánh số (Mục 1, 2..., Bước 1, 2...); giữ nguyên vẹn từng quy định/quy trình thương mại điện tử.", "weaknesses": "Phụ thuộc vào mức độ cấu trúc hóa của văn bản; các tài liệu không có đề mục rõ ràng sẽ fallback về đệ quy."}, {"strategy": "semantic", "name": "SemanticChunker", "class_name": "SemanticChunker", "total_chunks": 2243, "avg_length": 145.0, "min_length": 1, "max_length": 3026, "top3_recall": "4/5", "top3_recall_pct": 80.0, "total_score": 9, "max_score": 10, "strengths": "Tự động phát hiện ranh giới chuyển dịch ngữ nghĩa (semantic shift) bằng vector embeddings; gom các ý cùng chủ đề chặt chẽ.", "weaknesses": "Chi phí tính toán cao hơn do cần tính embeddings theo từng câu; kích thước chunk phụ thuộc độ dài cụm ý."}]}
+  </script>
+
+  <!-- INTERACTIVE DASHBOARD SCRIPT -->
+  <script>
+    let DATA = null;
+    let currentTab = 'overview';
+
+    // Initialize data from embedded script tag
+    try {
+      const rawText = document.getElementById('embedded-data').textContent;
+      DATA = JSON.parse(rawText);
+    } catch (e) {
+      console.error("Could not parse embedded benchmark data:", e);
+    }
+
+    // File input handler for loading external JSON
+    document.getElementById('json-file-input').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          DATA = JSON.parse(evt.target.result);
+          renderDashboard();
+          alert("Đã nạp dữ liệu từ " + file.name + " thành công!");
+        } catch (err) {
+          alert("Lỗi đọc file JSON: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function renderTabs() {
+      if (!DATA || !DATA.strategies) return;
+      const strats = DATA.strategies;
+      const stratKeys = Object.keys(strats);
+      const icons = {
+        fixed_size: '📦',
+        sentence: '📄',
+        recursive: '🌲',
+        header_section: '📑',
+        semantic: '🧠'
+      };
+
+      let tabsHtml = `
+        <button onclick="switchTab('overview')" id="tab-btn-overview" class="px-4 py-2.5 rounded-t-lg transition whitespace-nowrap text-slate-400 hover:text-slate-200">
+          📊 So Sánh Tổng Quan
+        </button>
+      `;
+
+      stratKeys.forEach(k => {
+        const icon = icons[k] || '⚡';
+        const name = strats[k].name || k;
+        tabsHtml += `
+          <button onclick="switchTab('${k}')" id="tab-btn-${k}" class="px-4 py-2.5 rounded-t-lg transition whitespace-nowrap text-slate-400 hover:text-slate-200">
+            ${icon} ${name}
+          </button>
+        `;
+      });
+
+      tabsHtml += `
+        <button onclick="switchTab('ab_test')" id="tab-btn-ab_test" class="px-4 py-2.5 rounded-t-lg transition whitespace-nowrap text-slate-400 hover:text-slate-200">
+          🔬 Phân Tích A/B (Metadata Filter)
+        </button>
+        <button onclick="switchTab('json_view')" id="tab-btn-json_view" class="px-4 py-2.5 rounded-t-lg transition whitespace-nowrap text-slate-400 hover:text-slate-200">
+          📋 Dữ Liệu JSON
+        </button>
+      `;
+
+      document.getElementById('tabs-bar').innerHTML = tabsHtml;
+    }
+
+    function switchTab(tabId) {
+      currentTab = tabId;
+      if (!DATA || !DATA.strategies) return;
+      const stratKeys = Object.keys(DATA.strategies);
+      const allTabs = ['overview', ...stratKeys, 'ab_test', 'json_view'];
+      
+      allTabs.forEach(t => {
+        const btn = document.getElementById('tab-btn-' + t);
+        if (btn) {
+          if (t === tabId) {
+            btn.classList.add('tab-active');
+            btn.classList.remove('text-slate-400');
+          } else {
+            btn.classList.remove('tab-active');
+            btn.classList.add('text-slate-400');
+          }
+        }
+      });
+
+      // Toggle main containers
+      const overviewEl = document.getElementById('tab-content-overview');
+      const detailContainer = document.getElementById('strategy-detail-container');
+      const abEl = document.getElementById('tab-content-ab-test');
+      const jsonEl = document.getElementById('tab-content-json');
+
+      overviewEl.classList.add('hidden');
+      detailContainer.classList.add('hidden');
+      abEl.classList.add('hidden');
+      jsonEl.classList.add('hidden');
+
+      if (tabId === 'overview') {
+        overviewEl.classList.remove('hidden');
+      } else if (stratKeys.includes(tabId)) {
+        detailContainer.classList.remove('hidden');
+        renderStrategyDetail(tabId);
+      } else if (tabId === 'ab_test') {
+        abEl.classList.remove('hidden');
+        renderABTestTab();
+      } else if (tabId === 'json_view') {
+        jsonEl.classList.remove('hidden');
+        renderJsonTab();
+      }
+    }
+
+    function renderDashboard() {
+      if (!DATA) return;
+
+      // Meta banner
+      document.getElementById('meta-timestamp').textContent = DATA.timestamp || new Date().toLocaleString();
+      document.getElementById('meta-data-dir').textContent = DATA.data_dir || 'data/ecommerce';
+      document.getElementById('meta-embedder').textContent = DATA.embedding_backend || 'Smart Mock';
+
+      renderTabs();
+      renderOverviewTab();
+      renderJsonTab();
+      switchTab(currentTab);
+    }
+
+
+    function renderOverviewTab() {
+      if (!DATA || !DATA.strategies) return;
+      const strats = DATA.strategies;
+      const stratKeys = Object.keys(strats);
+
+      // 1. KPI Cards
+      const bestStrat = DATA.best_strategy || (stratKeys.reduce((a, b) => 
+        (strats[a].summary.total_score >= strats[b].summary.total_score ? a : b), stratKeys[0]
+      ));
+
+      const kpisHtml = stratKeys.map(k => {
+        const s = strats[k];
+        const isBest = k === bestStrat;
+        return `
+          <div class="glass-card glass-card-hover rounded-2xl p-5 border ${isBest ? 'border-sky-500/50 bg-sky-950/20' : 'border-slate-800'} relative overflow-hidden">
+            ${isBest ? '<div class="absolute -right-12 top-6 bg-gradient-to-r from-sky-500 to-indigo-500 text-white text-[10px] font-bold px-12 py-1 transform rotate-45 shadow-md">ĐIỂM CAO NHẤT</div>' : ''}
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-md ${isBest ? 'bg-sky-500/20 text-sky-400' : 'bg-slate-800 text-slate-300'} font-mono">
+                ${s.class_name}
+              </span>
+              <span class="text-xs text-slate-400">${s.stats.total_chunks} Chunks</span>
+            </div>
+            <div class="flex items-baseline gap-2 mb-2">
+              <span class="text-3xl font-extrabold text-white">${s.summary.total_score}</span>
+              <span class="text-sm font-semibold text-slate-400">/ 10 điểm</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2 mb-3 overflow-hidden">
+              <div class="bg-gradient-to-r ${isBest ? 'from-sky-400 to-indigo-500' : 'from-slate-500 to-slate-400'} h-2 rounded-full" style="width: ${s.summary.total_score * 10}%"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-400 border-t border-slate-800/80 pt-2.5">
+              <div>Độ dài TB: <span class="text-slate-200 font-mono font-medium">${s.stats.avg_length} ký tự</span></div>
+              <div>Top-3 Recall: <span class="text-emerald-400 font-mono font-medium">${s.summary.top3_hit_rate}%</span></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('overview-kpis').innerHTML = kpisHtml;
+
+      // 2. Comparison Table
+      const tableRows = stratKeys.map(k => {
+        const s = strats[k];
+        const isBest = k === bestStrat;
+        return `
+          <tr class="hover:bg-slate-800/30 transition text-slate-300 ${isBest ? 'bg-sky-500/5 font-medium' : ''}">
+            <td class="py-3 px-4 font-semibold text-white flex items-center gap-2">
+              <span>${s.name}</span>
+              ${isBest ? '<span class="text-[10px] bg-sky-500/20 text-sky-400 border border-sky-500/30 px-1.5 py-0.5 rounded font-mono">Best</span>' : ''}
+            </td>
+            <td class="py-3 px-4 text-center font-mono">${s.stats.total_chunks}</td>
+            <td class="py-3 px-4 text-center font-mono">${s.stats.avg_length} kt</td>
+            <td class="py-3 px-4 text-center font-mono text-xs text-slate-400">${s.stats.min_length} - ${s.stats.max_length}</td>
+            <td class="py-3 px-4 text-center font-mono font-semibold text-emerald-400">${s.summary.relevant_in_top3_count}/${s.summary.total_queries} (${s.summary.top3_hit_rate}%)</td>
+            <td class="py-3 px-4 text-center">
+              <span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold ${s.summary.total_score >= 8 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : (s.summary.total_score >= 5 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30')}">
+                ${s.summary.total_score}/10
+              </span>
+            </td>
+            <td class="py-3 px-4 text-xs text-slate-300 leading-relaxed max-w-sm">
+              <div class="text-emerald-300"><strong>+</strong> ${s.strengths}</div>
+              <div class="text-rose-300 mt-0.5"><strong>-</strong> ${s.weaknesses}</div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      document.getElementById('comparison-table-body').innerHTML = tableRows;
+
+      // 3. Query Matrix
+      if (DATA.queries_spec) {
+        const matrixRows = DATA.queries_spec.map((q, idx) => {
+          const scoreCells = stratKeys.map(k => {
+            const sQuery = strats[k].queries.find(sq => sq.id === q.id);
+            const score = sQuery ? sQuery.score : 0;
+            const inTop3 = sQuery ? sQuery.in_top3 : false;
+            const topDoc = (sQuery && sQuery.top_chunks.length) ? sQuery.top_chunks[0].doc_id : 'n/a';
+
+            return `
+              <td class="py-3 px-4 text-center">
+                <div class="inline-flex flex-col items-center gap-1">
+                  <span class="px-2 py-0.5 rounded text-xs font-bold ${score === 2 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : (score === 1 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30')}">
+                    ${score}/2 điểm
+                  </span>
+                  <span class="text-[10px] text-slate-400 font-mono" title="${topDoc}">Top-1: ${topDoc.substring(0, 14)}...</span>
+                </div>
+              </td>
+            `;
+          }).join('');
+
+          return `
+            <tr class="hover:bg-slate-800/30 transition text-slate-300">
+              <td class="py-3 px-4 font-mono font-bold text-sky-400">#${q.id}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-medium border border-slate-700">
+                  ${q.type}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-xs font-medium text-slate-200">
+                ${q.query}
+                ${q.filter ? `<span class="block mt-1 font-mono text-[10px] text-sky-400">Filter: ${JSON.stringify(q.filter)}</span>` : ''}
+              </td>
+              ${scoreCells}
+            </tr>
+          `;
+        }).join('');
+        document.getElementById('query-matrix-body').innerHTML = matrixRows;
+      }
+    }
+
+    function renderStrategyDetail(strategyKey) {
+      if (!DATA || !DATA.strategies || !DATA.strategies[strategyKey]) return;
+      const s = DATA.strategies[strategyKey];
+
+      // Header card
+      document.getElementById('strategy-header-card').innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <span class="text-xs uppercase tracking-wider font-semibold text-sky-400 block mb-1">Chiến Lược Đánh Giá</span>
+            <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+              ${s.name}
+              <span class="text-xs bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-md font-mono">${s.class_name}</span>
+            </h2>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <span class="text-xs text-slate-400 block">Tổng Điểm Benchmark</span>
+              <span class="text-2xl font-extrabold text-white">${s.summary.total_score} / ${s.summary.max_score}</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg ${s.summary.total_score >= 8 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}">
+              ${Math.round(s.summary.total_score / s.summary.max_score * 100)}%
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+            <span class="text-slate-400 block mb-0.5">Tổng số chunk</span>
+            <span class="text-base font-bold text-white font-mono">${s.stats.total_chunks}</span>
+          </div>
+          <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+            <span class="text-slate-400 block mb-0.5">Độ dài trung bình</span>
+            <span class="text-base font-bold text-white font-mono">${s.stats.avg_length} ký tự</span>
+          </div>
+          <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+            <span class="text-slate-400 block mb-0.5">Khoảng độ dài (Min - Max)</span>
+            <span class="text-base font-bold text-white font-mono">${s.stats.min_length} - ${s.stats.max_length} kt</span>
+          </div>
+          <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+            <span class="text-slate-400 block mb-0.5">Top-3 Recall</span>
+            <span class="text-base font-bold text-emerald-400 font-mono">${s.summary.relevant_in_top3_count}/${s.summary.total_queries} (${s.summary.top3_hit_rate}%)</span>
+          </div>
+        </div>
+
+        <div class="text-xs space-y-1 pt-1">
+          <p><span class="font-semibold text-emerald-400">Ưu điểm:</span> ${s.strengths}</p>
+          <p><span class="font-semibold text-rose-400">Nhược điểm:</span> ${s.weaknesses}</p>
+        </div>
+      `;
+
+      // Queries List
+      const queriesHtml = s.queries.map(q => {
+        const chunksRows = q.top_chunks.map(c => `
+          <tr class="border-b border-slate-800/80 text-xs hover:bg-slate-800/30">
+            <td class="py-2.5 px-3 text-center font-bold text-slate-400">#${c.rank}</td>
+            <td class="py-2.5 px-3 font-mono font-semibold text-sky-400">${c.score.toFixed(4)}</td>
+            <td class="py-2.5 px-3 font-mono font-medium text-slate-200">
+              ${c.doc_id}
+              <span class="text-[10px] text-slate-400 block">(${'chunk #' + (c.chunk_id.includes('#') ? c.chunk_id.split('#')[1] : '0')})</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono ${c.audience === 'buyer' ? 'bg-sky-500/20 text-sky-300' : 'bg-amber-500/20 text-amber-300'}">
+                ${c.audience || 'n/a'}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-slate-300 leading-relaxed">
+              <div class="snippet-text text-slate-300">${c.snippet}</div>
+              <details class="mt-1">
+                <summary class="cursor-pointer text-[11px] text-sky-400 hover:underline">Xem toàn bộ nội dung chunk</summary>
+                <div class="mt-1 p-2 bg-slate-950 rounded text-slate-400 font-mono text-[11px] whitespace-pre-wrap max-h-48 overflow-y-auto border border-slate-800">${c.full_content}</div>
+              </details>
+            </td>
+          </tr>
+        `).join('');
+
+        return `
+          <div class="glass-card rounded-2xl p-5 shadow-lg space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-bold text-sky-400">Câu #${q.id}</span>
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700">
+                  ${q.type}
+                </span>
+                ${q.filter ? `<span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-mono font-semibold">Filter: ${JSON.stringify(q.filter)}</span>` : ''}
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold px-2 py-0.5 rounded ${q.in_top3 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                  Top-3: ${q.in_top3 ? 'CÓ' : 'KHÔNG'}
+                </span>
+                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full ${q.score === 2 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : (q.score === 1 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30')}">
+                  ${q.score} / 2 Điểm
+                </span>
+              </div>
+            </div>
+
+            <div class="text-sm font-semibold text-slate-100">
+              ${q.query}
+            </div>
+
+            <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 text-xs space-y-1.5">
+              <div class="text-slate-400">
+                <strong class="text-amber-400">Câu trả lời chuẩn (Gold Answer):</strong> ${q.gold_answer}
+              </div>
+              <div class="text-slate-400 flex items-center gap-2">
+                <strong class="text-sky-400">Tài liệu mục tiêu:</strong>
+                <code class="text-slate-300 font-mono bg-slate-800 px-1 py-0.5 rounded">${q.gold_doc_id}</code>
+                <span class="text-slate-500">|</span>
+                <strong class="text-sky-400">Từ khóa kỳ vọng:</strong>
+                <code class="text-emerald-300 font-mono bg-slate-800 px-1 py-0.5 rounded">"${q.key_phrase}"</code>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Top-3 Chunks Được Vector Store Trả Về:</h4>
+              <div class="overflow-x-auto border border-slate-800 rounded-xl">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-800/50 text-slate-400 border-b border-slate-800 font-semibold">
+                    <tr>
+                      <th class="py-2 px-3 text-center w-12">Hạng</th>
+                      <th class="py-2 px-3 w-20">Score</th>
+                      <th class="py-2 px-3 w-48">Doc ID & Chunk</th>
+                      <th class="py-2 px-3 w-20">Đối tượng</th>
+                      <th class="py-2 px-3">Trích đoạn nội dung</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${chunksRows}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-indigo-950/20 border border-indigo-500/20 p-3 rounded-xl text-xs space-y-1">
+              <span class="text-indigo-400 font-bold block">Câu Trả Lời Của RAG Agent:</span>
+              <p class="text-slate-300 font-medium">${q.agent_answer}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('strategy-queries-list').innerHTML = queriesHtml;
+
+      // Strategy A/B Card
+      const ab = s.ab_test;
+      if (ab) {
+        document.getElementById('strategy-ab-card').innerHTML = `
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>A/B Test Riêng Của Chiến Lược: Có Filter vs Không Filter (Câu #5)</span>
+            </h3>
+            <span class="text-xs px-2.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-mono">
+              audience = buyer
+            </span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-1">
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+              <span class="font-bold text-emerald-400 block border-b border-slate-800 pb-1">CÓ FILTER: {'audience': 'buyer'}</span>
+              <ul class="space-y-1.5 text-slate-300">
+                ${ab.filtered_results.map(r => `
+                  <li class="font-mono text-[11px] flex justify-between bg-slate-800/40 p-1.5 rounded">
+                    <span>${r.rank}. ${r.doc_id} (${r.audience})</span>
+                    <span class="text-sky-400 font-bold">${r.score.toFixed(4)}</span>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+              <span class="font-bold text-amber-400 block border-b border-slate-800 pb-1">KHÔNG CÓ FILTER (Tìm kiếm toàn bộ kho)</span>
+              <ul class="space-y-1.5 text-slate-300">
+                ${ab.unfiltered_results.map(r => `
+                  <li class="font-mono text-[11px] flex justify-between bg-slate-800/40 p-1.5 rounded">
+                    <span>${r.rank}. ${r.doc_id} (${r.audience})</span>
+                    <span class="text-sky-400 font-bold">${r.score.toFixed(4)}</span>
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 italic bg-slate-800/30 p-2.5 rounded-lg border border-slate-800">
+            <strong>Nhận xét:</strong> ${ab.analysis}
+          </p>
+        `;
+      }
+    }
+
+    function renderABTestTab() {
+      if (!DATA || !DATA.strategies) return;
+      const strats = DATA.strategies;
+      const stratKeys = Object.keys(strats);
+
+      const html = stratKeys.map(k => {
+        const s = strats[k];
+        const ab = s.ab_test;
+        if (!ab) return '';
+
+        return `
+          <div class="bg-slate-900/50 p-5 rounded-xl border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                <span>${s.name}</span>
+                <span class="text-xs font-mono text-slate-400">(${s.class_name})</span>
+              </h4>
+              <span class="text-xs text-slate-400 font-mono">${s.stats.total_chunks} Chunks</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div class="bg-slate-950 p-3.5 rounded-lg border border-emerald-500/20 space-y-2">
+                <span class="font-bold text-emerald-400 flex items-center gap-1.5">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                  Có Filter (audience = buyer)
+                </span>
+                <div class="space-y-1.5">
+                  ${ab.filtered_results.map(r => `
+                    <div class="p-2 bg-slate-900 rounded border border-slate-800 text-[11px]">
+                      <div class="flex justify-between font-mono font-semibold text-slate-200">
+                        <span>#${r.rank} ${r.doc_id}</span>
+                        <span class="text-sky-400">${r.score.toFixed(4)}</span>
+                      </div>
+                      <p class="text-slate-400 mt-1 truncate">${r.snippet}</p>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800 space-y-2">
+                <span class="font-bold text-amber-400 flex items-center gap-1.5">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  Không Có Filter (Toàn Bộ Sàn)
+                </span>
+                <div class="space-y-1.5">
+                  ${ab.unfiltered_results.map(r => `
+                    <div class="p-2 bg-slate-900 rounded border border-slate-800 text-[11px]">
+                      <div class="flex justify-between font-mono font-semibold text-slate-200">
+                        <span>#${r.rank} ${r.doc_id} (${r.audience})</span>
+                        <span class="text-sky-400">${r.score.toFixed(4)}</span>
+                      </div>
+                      <p class="text-slate-400 mt-1 truncate">${r.snippet}</p>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-400 italic">
+              <strong>Đánh giá:</strong> ${ab.analysis}
+            </p>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('ab-test-strategies-grid').innerHTML = html;
+    }
+
+    function renderJsonTab() {
+      if (!DATA) return;
+      const formatted = JSON.stringify(DATA, null, 2);
+      document.getElementById('json-display').textContent = formatted;
+      const blob = new Blob([formatted], { type: 'application/json' });
+      document.getElementById('download-json-btn').href = URL.createObjectURL(blob);
+    }
+
+    function copyJsonToClipboard() {
+      if (!DATA) return;
+      navigator.clipboard.writeText(JSON.stringify(DATA, null, 2)).then(() => {
+        alert("Đã sao chép toàn bộ JSON vào bộ nhớ đệm!");
+      });
+    }
+
+    // Auto-run on load
+    window.addEventListener('DOMContentLoaded', () => {
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>

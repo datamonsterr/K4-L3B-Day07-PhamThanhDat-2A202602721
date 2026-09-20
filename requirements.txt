@@ -2,6 +2,7 @@
 # all 42 tests run on MockEmbedder, no real embedding backend needed.
 pytest==9.1.1
 python-dotenv==1.2.2
+openai
 
 # Want a real embedding backend for benchmark quality (optional, not graded)?
 #   Local, free, no API key : pip install -r requirements-local.txt

@@ -151,14 +151,22 @@ PY
 ├── README.md              ← Bạn đang đọc file này
 ├── exercises.md           ← Bài tập (4 phần)
 ├── main.py               ← Điểm bắt đầu cho việc chạy thử thủ công (manual demo)
+├── bench.py              ← Kịch bản benchmark tự động 5 chiến lược + xuất JSON & HTML
+├── benchmark_report.html  ← Bảng điều khiển tương tác kết quả benchmark (Tabs, Tables, Charts)
+├── ket_qua_benchmark.json ← Dữ liệu benchmark chi tiết định dạng JSON
+├── ket_qua_benchmark.txt  ← Tóm tắt kết quả benchmark dạng text
+├── scripts/
+│   ├── compare_chunking.py← So sánh 5 chiến lược trên 10 tài liệu thực tế
+│   └── check_data.py      ← Kiểm tra thống kê dữ liệu đầu vào
 ├── src/
-│   ├── chunking.py       ← Các lớp Chunking + hàm hỗ trợ tính độ tương tự
-│   ├── store.py          ← Lớp EmbeddingStore
+│   ├── chunking.py       ← 5 lớp Chunking (Fixed, Sentence, Recursive, HeaderSection, Semantic)
+│   ├── store.py          ← Lớp EmbeddingStore (tìm kiếm, lọc metadata, xóa tài liệu)
 │   ├── agent.py          ← Lớp KnowledgeBaseAgent
 │   └── ...               ← Các module nhỏ hơn
-├── data/                  ← Tài liệu mẫu + tài liệu do nhóm thu thập (.txt/.md)
+├── data/
+│   └── ecommerce/         ← 10 tài liệu chính sách Shopee tiếng Việt (~329k ký tự)
 ├── tests/
-│   └── test_solution.py   ← Bộ kiểm thử (Hơn 30 tests)
+│   └── test_solution.py   ← Bộ kiểm thử tự động (42 tests - 100% Passed)
 ├── report/
 │   ├── REPORT_NHOM.md    ← Báo cáo nhóm (1 file/nhóm)
 │   └── REPORT_CANHAN.md  ← Báo cáo cá nhân (1 file/sinh viên)
@@ -196,6 +204,10 @@ PY
 - `ChunkingStrategyComparator` — so sánh 3 chiến lược
 - `EmbeddingStore` — lớp bao bọc (wrapper) cho kho lưu trữ vector (gồm 5 phương thức)
 - `KnowledgeBaseAgent` — tác tử theo mô hình RAG
+
+### Mở rộng nâng cao (Đã hoàn thành thêm)
+- `HeaderSectionChunker` — chia nhỏ theo tiêu đề Markdown (`#`, `##`) và ranh giới điều khoản số (`1. `, `Bước 1:`) phù hợp với văn bản pháp lý/chính sách.
+- `SemanticChunker` — chia nhỏ dựa trên độ tương tự ngữ nghĩa cosine similarity giữa các câu, tích hợp Gemini API (`google-genai`) với batching tối ưu hạn mức và fallback sang n-gram feature hashing.
 
 ---
 
@@ -259,6 +271,47 @@ Xem chi tiết tại `docs/SCORING.md`. Tóm tắt:
 
 ## Chạy Kiểm Thử
 
+Tất cả **42/42 tests** trong `tests/test_solution.py` đã hoàn thành và vượt qua:
+
 ```bash
 pytest tests/ -v
+# 42 passed in ~0.07s
+```
+
+---
+
+## Chạy Benchmark & Xem Bảng Điều Khiển Trực Quan (HTML / JSON)
+
+Lab đã tích hợp kịch bản benchmark tự động đánh giá 5 chiến lược trên 10 tài liệu thương mại điện tử thực tế:
+
+### 1. Chạy kịch bản Benchmark
+```bash
+python bench.py
+```
+Kịch bản sẽ:
+- Đánh giá 5 chiến lược: `FixedSizeChunker`, `SentenceChunker`, `RecursiveChunker`, `HeaderSectionChunker`, `SemanticChunker`.
+- Đo lường Top-1, Top-3 recall, điểm tổng kết (9/10), độ trễ (latency), và kiểm thử A/B lọc metadata.
+- Xuất file kết quả JSON chi tiết: `ket_qua_benchmark.json`.
+- Tạo dashboard báo cáo HTML tương tác: `benchmark_report.html` (và bản sao `ket_qua_benchmark.html`).
+- Tạo file text tóm tắt: `ket_qua_benchmark.txt`.
+
+### 2. Xem Bảng Điều Khiển Báo Cáo HTML (Interactive Dashboard)
+Mở trực tiếp file `benchmark_report.html` bằng trình duyệt web:
+```bash
+# Trên Linux:
+xdg-open benchmark_report.html
+# Hoặc trên macOS:
+open benchmark_report.html
+# Hoặc trên Windows:
+start benchmark_report.html
+```
+Dashboard cung cấp:
+- **Tabs chuyển đổi linh hoạt**: Tổng quan so sánh, Chi tiết từng chiến lược (kèm mẫu chunks), Đánh giá 5 Query, A/B Testing Metadata, và Trình xem Raw JSON.
+- **Biểu đồ so sánh trực quan**: Điểm số Benchmark và phân bố số lượng Chunks.
+- **Bảng số liệu chi tiết**: Số lượng chunk, kích thước trung bình/nhỏ nhất/lớn nhất, và thời gian nạp/tìm kiếm.
+
+### 3. So Sánh Phân Bố Chunking Nhanh
+Để thống kê phân bố chunk trên toàn bộ 10 tài liệu ngữ liệu:
+```bash
+python scripts/compare_chunking.py
 ```
